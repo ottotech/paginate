@@ -43,6 +43,7 @@ type PaginationResponse struct {
 type whereClause struct {
 	clause string
 	args   []interface{}
+	exists bool
 }
 
 func NewPaginator(tableName string, dbColNames []string, params url.Values) Paginator {
@@ -70,6 +71,7 @@ func NewPaginatorWithLimit(pageSize int, tableName string, dbColNames []string, 
 }
 
 func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
+	var s string
 	c1 := make(chan whereClause)
 	c2 := make(chan string)
 	c3 := make(chan string)
@@ -79,7 +81,12 @@ func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
 	where := <-c1
 	pagination := <-c2
 	order := <-c3
-	s := "SELECT " + strings.Join(p.dbColNames, ", ") + ", count(*) over() FROM " + p.tableName + where.clause + order + pagination
+
+	if where.exists {
+		s = "SELECT " + strings.Join(p.dbColNames, ", ") + ", count(*) over() FROM " + p.tableName + where.clause + order + pagination
+	} else {
+		s = "SELECT " + strings.Join(p.dbColNames, ", ") + ", count(*) over() FROM " + p.tableName + order + pagination
+	}
 	return s, where.args, nil
 }
 
@@ -150,9 +157,10 @@ func createWhereClause(colNames []string, v url.Values, c chan whereClause) {
 	} else {
 		separator = AND
 	}
-	// let's map the clause and args to the whereClause struct
+	// let's map the clause and args to the whereClause struct, and specify if there were some where clauses at all
 	w.clause = WHERE + strings.Join(clauses, separator)
 	w.args = values
+	w.exists = len(clauses) > 0
 	// sends to channel
 	c <- w
 }
