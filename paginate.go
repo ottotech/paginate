@@ -14,12 +14,14 @@ const (
 type Paginator interface {
 	Paginate() (sql string, args []interface{}, err error)
 	Response() PaginationResponse
+	SetPageCount(size int)
 	SetTotalResult(size int)
 }
 
 type pagination struct {
 	request    paginationRequest
 	response   PaginationResponse
+	pageSize   int
 	tableName  string
 	parameters url.Values
 	dbColNames []string
@@ -27,13 +29,15 @@ type pagination struct {
 
 type paginationRequest struct {
 	pageNumber int
-	pageSize   int
 }
 
 type PaginationResponse struct {
-	NextPageNumber int  `json:"next_page_number"`
-	HasNextPage    bool `json:"has_next_page"`
-	TotalSize      int  `json:"total_size"`
+	PageNumber      int  `json:"page_number"`
+	NextPageNumber  int  `json:"next_page_number"`
+	HasNextPage     bool `json:"has_next_page"`
+	HasPreviousPage bool `json:"has_previous_page"`
+	PageCount       int  `json:"page_count"`
+	TotalSize       int  `json:"total_size"`
 }
 
 type whereClause struct {
@@ -47,6 +51,19 @@ func NewPaginator(tableName string, dbColNames []string, params url.Values) Pagi
 	p.tableName = tableName
 	p.dbColNames = dbColNames
 	p.parameters = params
+	p.pageSize = PageSize
+	p.request = getRequestData(params)
+	paginator = p
+	return paginator
+}
+
+func NewPaginatorWithLimit(pageSize int, tableName string, dbColNames []string, params url.Values) Paginator {
+	var paginator Paginator
+	p := new(pagination)
+	p.tableName = tableName
+	p.dbColNames = dbColNames
+	p.parameters = params
+	p.pageSize = pageSize
 	p.request = getRequestData(params)
 	paginator = p
 	return paginator
@@ -57,7 +74,7 @@ func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
 	c2 := make(chan string)
 	c3 := make(chan string)
 	go createWhereClause(p.dbColNames, p.parameters, c1)
-	go createPaginationClause(p.request, c2)
+	go createPaginationClause(p.request.pageNumber, p.pageSize, c2)
 	go createOrderByClause(p.parameters, p.dbColNames, c3)
 	where := <-c1
 	pagination := <-c2
@@ -67,11 +84,13 @@ func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
 }
 
 func (p *pagination) Response() PaginationResponse {
-	if (p.request.pageNumber * p.request.pageSize) < p.response.TotalSize {
+	p.response.PageNumber = p.request.pageNumber
+
+	if (p.request.pageNumber * p.pageSize) < p.response.TotalSize {
 		p.response.NextPageNumber = p.request.pageNumber + 1
 		p.response.HasNextPage = true
 	}
-	if (p.request.pageNumber * p.request.pageSize) == p.response.TotalSize {
+	if (p.request.pageNumber * p.pageSize) == p.response.TotalSize {
 		p.response.NextPageNumber = 0
 		p.response.HasNextPage = false
 	}
@@ -79,11 +98,19 @@ func (p *pagination) Response() PaginationResponse {
 		p.response.NextPageNumber = 0
 		p.response.HasNextPage = false
 	}
+
+	if p.response.PageNumber > 1 {
+		p.response.HasPreviousPage = true
+	}
 	return p.response
 }
 
 func (p *pagination) SetTotalResult(size int) {
 	p.response.TotalSize = size
+}
+
+func (p *pagination) SetPageCount(count int) {
+	p.response.PageCount = count
 }
 
 func getRequestData(v url.Values) paginationRequest {
@@ -94,13 +121,8 @@ func getRequestData(v url.Values) paginationRequest {
 			page = 1
 		}
 		p.pageNumber = page
-	}
-	if pageSize := v.Get("page_size"); pageSize != "" {
-		pageSize, err := strconv.Atoi(pageSize)
-		if err != nil {
-			pageSize = 0
-		}
-		p.pageSize = pageSize
+	} else {
+		p.pageNumber = 1
 	}
 	return p
 }
@@ -135,25 +157,22 @@ func createWhereClause(colNames []string, v url.Values, c chan whereClause) {
 	c <- w
 }
 
-func createPaginationClause(p paginationRequest, c chan string) {
+func createPaginationClause(pageNumber int, pageSize int, c chan string) {
 	var clause string
-	var pageSize int
 	var offset int
 
-	if p.pageSize > 0 {
-		pageSize = p.pageSize
-	} else if p.pageSize > PageSize {
+	if pageSize > PageSize {
 		pageSize = PageSize
-	} else {
+	} else if pageSize < 0 {
 		pageSize = PageSize
 	}
 
 	clause += fmt.Sprintf(" LIMIT %v ", pageSize)
 
-	if p.pageNumber < 0 || p.pageNumber == 0 || p.pageNumber == 1 {
+	if pageNumber < 0 || pageNumber == 0 || pageNumber == 1 {
 		offset = 0
 	} else {
-		offset = pageSize * (p.pageNumber - 1)
+		offset = pageSize * (pageNumber - 1)
 	}
 
 	clause += fmt.Sprintf(" OFFSET %v", offset)
