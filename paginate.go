@@ -38,6 +38,7 @@ const (
 	lt  = "<"
 	gte = ">="
 	lte = "<="
+	ne  = "<>"
 )
 
 // Paginator is the interface that wraps pagination behaviors.
@@ -75,7 +76,6 @@ type Paginator interface {
 type pagination struct {
 	request    paginationRequest
 	response   PaginationResponse
-	pageSize   int
 	tableName  string
 	parameters url.Values
 	filters    []filter
@@ -84,6 +84,7 @@ type pagination struct {
 
 type paginationRequest struct {
 	pageNumber int
+	pageSize   int
 }
 
 type PaginationResponse struct {
@@ -126,7 +127,6 @@ func NewPaginator(tableName string, colNames []string, u url.URL) Paginator {
 	p.tableName = tableName
 	p.colNames = colNames
 	p.parameters = v
-	p.pageSize = PageSize
 	p.filters = <-c
 	p.request = getRequestData(v)
 	paginator = p
@@ -146,9 +146,9 @@ func NewPaginatorWithLimit(pageSize int, tableName string, colNames []string, u 
 	p.tableName = tableName
 	p.colNames = colNames
 	p.parameters = v
-	p.pageSize = pageSize
 	p.filters = <-c
 	p.request = getRequestData(v)
+	p.request.pageSize = pageSize // here we override the pageSize
 	paginator = p
 	return paginator
 }
@@ -163,7 +163,7 @@ func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
 	c4 := make(chan string)
 	go createWhereClause(p.colNames, p.parameters, c1)
 	go createFilterClause(p.filters, c2)
-	go createPaginationClause(p.request.pageNumber, p.pageSize, c3)
+	go createPaginationClause(p.request.pageNumber, p.request.pageSize, c3)
 	go createOrderByClause(p.parameters, p.colNames, c4)
 	where := <-c1
 	filter := <-c2
@@ -178,7 +178,6 @@ func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
 	args := make([]interface{}, 0)
 	args = append(args, where.args...)
 	args = append(args, filter.args...)
-
 	if where.exists && filter.exists {
 		s = "SELECT " + strings.Join(p.colNames, ", ") + ", count(*) over() FROM " + p.tableName + where.clause + AND + filter.clause + order + pagination
 		s = fmt.Sprintf(s, placeholders...)
@@ -197,11 +196,11 @@ func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
 func (p *pagination) Response() PaginationResponse {
 	p.response.PageNumber = p.request.pageNumber
 
-	if (p.request.pageNumber * p.pageSize) < p.response.TotalSize {
+	if (p.request.pageNumber * p.request.pageSize) < p.response.TotalSize {
 		p.response.NextPageNumber = p.request.pageNumber + 1
 		p.response.HasNextPage = true
 	}
-	if (p.request.pageNumber * p.pageSize) == p.response.TotalSize {
+	if (p.request.pageNumber * p.request.pageSize) == p.response.TotalSize {
 		p.response.NextPageNumber = 0
 		p.response.HasNextPage = false
 	}
@@ -234,6 +233,19 @@ func getRequestData(v url.Values) paginationRequest {
 		p.pageNumber = page
 	} else {
 		p.pageNumber = 1
+	}
+
+	if pageSize := v.Get("page_size"); pageSize != "" {
+		pageSize, err := strconv.Atoi(pageSize)
+		if err != nil {
+			pageSize = PageSize
+		}
+		if pageSize <= 0 {
+			pageSize = PageSize
+		}
+		p.pageSize = pageSize
+	} else {
+		p.pageSize = PageSize
 	}
 	return p
 }
@@ -272,7 +284,7 @@ func createFilterClause(filters []filter, c chan filterClause) {
 	f := filterClause{}
 	args := make([]interface{}, 0)
 	for i, f := range filters {
-		if v, err := strconv.Atoi(f.value); err != nil {
+		if v, err := strconv.Atoi(f.value); err == nil {
 			args = append(args, v)
 		} else {
 			args = append(args, f.value)
@@ -380,11 +392,16 @@ func getFilters(decodedPath string, colNames []string, c chan []filter) {
 			if key != n {
 				continue
 			}
+			// order matters
 			if ok, f := getF(key, value, gte); ok {
 				s = append(s, f)
 				continue
 			}
 			if ok, f := getF(key, value, lte); ok {
+				s = append(s, f)
+				continue
+			}
+			if ok, f := getF(key, value, ne); ok {
 				s = append(s, f)
 				continue
 			}
