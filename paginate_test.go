@@ -294,3 +294,27 @@ func TestGetRequestData_with_no_data(t *testing.T) {
 		t.Errorf("page_number in pagination response should be %v; got %v", 1, res.pageNumber)
 	}
 }
+
+func TestCreateWhereClause(t *testing.T) {
+	colNames := []string{"name", "system", "age"}
+	values := url.Values{}
+	values.Add("name", "otto")
+	values.Add("system", "hipaca")
+	values.Add("age", "33")
+	c := make(chan whereClause)
+	go createWhereClause(colNames, values, c)
+	where := <-c
+	if !where.exists {
+		t.Errorf("where clauses should exists; got %v", where.exists)
+	}
+	expectedCLAUSE := " WHERE name = $%v AND system = $%v AND age = $%v"
+	if where.clause != expectedCLAUSE {
+		t.Errorf("where clauses should be %v; got %v", expectedCLAUSE, where.clause)
+	}
+	rightARGS := []interface{}{"otto", "hipaca", "33"}
+	for i := 0; i < len(where.args); i++ {
+		if where.args[i] != rightARGS[i] {
+			t.Errorf("where clause arg number %v should be %v; got %v", i, rightARGS[i], where.args[i])
+		}
+	}
+}
