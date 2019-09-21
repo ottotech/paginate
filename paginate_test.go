@@ -202,20 +202,11 @@ func TestNewPaginator(t *testing.T) {
 	if sql != expectedSQL {
 		t.Errorf("expected sql:\n %v; \ngot %v\n", expectedSQL, sql)
 	}
-	if args[0] != "otto" {
-		t.Errorf("arg $1 should be otto; got %v", args[0])
-	}
-	if args[1] != 2 {
-		t.Errorf("arg $2 should be 2; got %v", args[1])
-	}
-	if args[2] != 4 {
-		t.Errorf("arg $3 should be 4; got %v", args[2])
-	}
-	if args[3] != 40 {
-		t.Errorf("arg $4 should be 40; got %v", args[3])
-	}
-	if args[4] != 7 {
-		t.Errorf("arg $5 should be 7; got %v", args[4])
+	rightARGS := []interface{}{"otto", 2, 4, 40, 7}
+	for i := 0; i < len(args); i++ {
+		if args[i] != rightARGS[i] {
+			t.Errorf("arg $%v should be %v; got %v", i, rightARGS[i], args[i])
+		}
 	}
 	res := paginator.Response()
 	if res.PageNumber != 1 {
@@ -253,20 +244,11 @@ func TestNewPaginatorWithLimit(t *testing.T) {
 	if sql != expectedSQL {
 		t.Errorf("expected sql:\n %v; \ngot %v\n", expectedSQL, sql)
 	}
-	if args[0] != "otto" {
-		t.Errorf("arg $1 should be otto; got %v", args[0])
-	}
-	if args[1] != 2 {
-		t.Errorf("arg $2 should be 2; got %v", args[1])
-	}
-	if args[2] != 4 {
-		t.Errorf("arg $3 should be 4; got %v", args[2])
-	}
-	if args[3] != 40 {
-		t.Errorf("arg $4 should be 40; got %v", args[3])
-	}
-	if args[4] != 7 {
-		t.Errorf("arg $5 should be 7; got %v", args[4])
+	rightARGS := []interface{}{"otto", 2, 4, 40, 7}
+	for i := 0; i < len(args); i++ {
+		if args[i] != rightARGS[i] {
+			t.Errorf("arg $%v should be %v; got %v", i, rightARGS[i], args[i])
+		}
 	}
 	res := paginator.Response()
 	if res.PageNumber != 2 {
