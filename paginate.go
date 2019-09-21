@@ -155,7 +155,7 @@ func NewPaginatorWithLimit(pageSize int, tableName string, colNames []string, u 
 
 func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
 	var s string
-	var AND = " AND "
+	var AND = " AND"
 	var WHERE = " WHERE"
 	c1 := make(chan whereClause)
 	c2 := make(chan filterClause)
@@ -279,7 +279,7 @@ func createWhereClause(colNames []string, v url.Values, c chan whereClause) {
 }
 
 func createFilterClause(filters []filter, c chan filterClause) {
-	var AND = " AND "
+	var AND = " AND"
 	var s = ""
 	f := filterClause{}
 	args := make([]interface{}, 0)
@@ -291,6 +291,10 @@ func createFilterClause(filters []filter, c chan filterClause) {
 		}
 
 		if i == 0 {
+			if len(filters) > 1 {
+				s += fmt.Sprintf(" %s %s ", f.field, f.sign) + "$%v" + AND
+				continue
+			}
 			s += fmt.Sprintf(" %s %s ", f.field, f.sign) + "$%v"
 			continue
 		}
@@ -324,7 +328,7 @@ func createPaginationClause(pageNumber int, pageSize int, c chan string) {
 		offset = pageSize * (pageNumber - 1)
 	}
 
-	clause += fmt.Sprintf(" OFFSET %v", offset)
+	clause += fmt.Sprintf("OFFSET %v", offset)
 	c <- clause
 }
 
@@ -334,7 +338,7 @@ func createOrderByClause(v url.Values, colNames []string, c chan string) {
 	clauses := make([]string, 0)
 	sort := v.Get("sort")
 	if sort == "" {
-		c <- " ORDER BY id "
+		c <- " ORDER BY id"
 		return
 	}
 	fields := strings.Split(sort, ",")
