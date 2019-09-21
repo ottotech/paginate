@@ -127,8 +127,8 @@ func NewPaginator(tableName string, colNames []string, u url.URL) Paginator {
 	p.tableName = tableName
 	p.colNames = colNames
 	p.parameters = v
-	p.filters = <-c
 	p.request = getRequestData(v)
+	p.filters = <-c
 	paginator = p
 	return paginator
 }
@@ -146,8 +146,8 @@ func NewPaginatorWithLimit(pageSize int, tableName string, colNames []string, u 
 	p.tableName = tableName
 	p.colNames = colNames
 	p.parameters = v
-	p.filters = <-c
 	p.request = getRequestData(v)
+	p.filters = <-c
 	p.request.pageSize = pageSize // here we override the pageSize
 	paginator = p
 	return paginator
