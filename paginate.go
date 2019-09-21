@@ -158,17 +158,17 @@ func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
 	var AND = " AND "
 	var WHERE = " WHERE"
 	c1 := make(chan whereClause)
-	c2 := make(chan string)
+	c2 := make(chan filterClause)
 	c3 := make(chan string)
-	c4 := make(chan filterClause)
+	c4 := make(chan string)
 	go createWhereClause(p.colNames, p.parameters, c1)
-	go createPaginationClause(p.request.pageNumber, p.pageSize, c2)
-	go createOrderByClause(p.parameters, p.colNames, c3)
-	go createFilterClause(p.filters, c4)
+	go createFilterClause(p.filters, c2)
+	go createPaginationClause(p.request.pageNumber, p.pageSize, c3)
+	go createOrderByClause(p.parameters, p.colNames, c4)
 	where := <-c1
-	pagination := <-c2
-	order := <-c3
-	filter := <-c4
+	filter := <-c2
+	pagination := <-c3
+	order := <-c4
 
 	numArgs := len(where.args) + len(filter.args)
 	placeholders := make([]interface{}, 0)
