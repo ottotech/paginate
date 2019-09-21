@@ -270,3 +270,27 @@ func TestNewPaginatorWithLimit(t *testing.T) {
 		t.Errorf("page_count in pagination response should be 10; got %v", res.PageCount)
 	}
 }
+
+func TestGetRequestData_with_data(t *testing.T) {
+	values := url.Values{}
+	values.Add("page", "1")
+	values.Add("page_size", "20")
+	res := getRequestData(values)
+	if res.pageSize != 20 {
+		t.Errorf("page_size in pagination response should be %v; got %v", 20, res.pageSize)
+	}
+	if res.pageNumber != 1 {
+		t.Errorf("page_number in pagination response should be %v; got %v", 1, res.pageNumber)
+	}
+}
+
+func TestGetRequestData_with_no_data(t *testing.T) {
+	values := url.Values{}
+	res := getRequestData(values)
+	if res.pageSize != PageSize {
+		t.Errorf("page_size in pagination response should be %v; got %v", PageSize, res.pageSize)
+	}
+	if res.pageNumber != 1 {
+		t.Errorf("page_number in pagination response should be %v; got %v", 1, res.pageNumber)
+	}
+}
