@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"reflect"
 	"testing"
 )
 
@@ -403,5 +404,26 @@ func TestCreateOrderByClause_with_no_sorting_options(t *testing.T) {
 	expectedCLAUSE := " ORDER BY id"
 	if clause != expectedCLAUSE {
 		t.Errorf("expected clause should be %v, got %v", expectedCLAUSE, clause)
+	}
+}
+
+func TestGetFilters(t *testing.T) {
+	decodedPath := "http://ottotech.com?column1>2&column2<4&column3>=40&column4<=7"
+	colNames := []string{"column1", "column2", "column3", "column4"}
+	c := make(chan []filter)
+	go getFilters(decodedPath, colNames, c)
+	filters := <-c
+	if len(filters) != 4 {
+		t.Errorf("we should have %v filters; got only %v", 4, len(filters))
+	}
+	f1 := filter{"column1", ">", "2"}
+	f2 := filter{"column2", "<", "4"}
+	f3 := filter{"column3", ">=", "40"}
+	f4 := filter{"column4", "<=", "7"}
+	list := []filter{f1, f2, f3, f4}
+	for i, f := range filters {
+		if !reflect.DeepEqual(f, list[i]) {
+			t.Errorf("filter %+v is not equal to filter %+v", f, list[i])
+		}
 	}
 }
