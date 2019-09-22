@@ -344,3 +344,64 @@ func TestCreateFilterClause(t *testing.T) {
 		}
 	}
 }
+
+func TestCreatePaginationClause_with_page_gt_1(t *testing.T) {
+	pageNumber := 2
+	pageSize := 30
+	c := make(chan string)
+	go createPaginationClause(pageNumber, pageSize, c)
+	clause := <-c
+	expectedCLAUSE := " LIMIT 30 OFFSET 30"
+	if clause != expectedCLAUSE {
+		t.Errorf("expected clause should be %v; got %v", expectedCLAUSE, clause)
+	}
+}
+
+func TestCreatePaginationClause_with_page_eq_1(t *testing.T) {
+	pageNumber := 1
+	pageSize := 30
+	c := make(chan string)
+	go createPaginationClause(pageNumber, pageSize, c)
+	clause := <-c
+	expectedCLAUSE := " LIMIT 30 OFFSET 0"
+	if clause != expectedCLAUSE {
+		t.Errorf("expected clause should be %v; got %v", expectedCLAUSE, clause)
+	}
+}
+
+func TestCreatePaginationClause_with_page_lt_1(t *testing.T) {
+	pageNumber := -4
+	pageSize := 30
+	c := make(chan string)
+	go createPaginationClause(pageNumber, pageSize, c)
+	clause := <-c
+	expectedCLAUSE := " LIMIT 30 OFFSET 0"
+	if clause != expectedCLAUSE {
+		t.Errorf("expected clause should be %v; got %v", expectedCLAUSE, clause)
+	}
+}
+
+func TestCreateOrderByClause_with_sorting_options(t *testing.T) {
+	colNames := []string{"name", "lastname", "age", "address"}
+	values := url.Values{}
+	values.Add("sort", " name,-lastname,-age, address")
+	c := make(chan string)
+	go createOrderByClause(values, colNames, c)
+	clause := <-c
+	expectedCLAUSE := " ORDER BY name ASC,lastname DESC,age DESC,address ASC,id"
+	if clause != expectedCLAUSE {
+		t.Errorf("expected clause should be %v, got %v", expectedCLAUSE, clause)
+	}
+}
+
+func TestCreateOrderByClause_with_no_sorting_options(t *testing.T) {
+	colNames := []string{"name", "lastname", "age", "address"}
+	values := url.Values{}
+	c := make(chan string)
+	go createOrderByClause(values, colNames, c)
+	clause := <-c
+	expectedCLAUSE := " ORDER BY id"
+	if clause != expectedCLAUSE {
+		t.Errorf("expected clause should be %v, got %v", expectedCLAUSE, clause)
+	}
+}
