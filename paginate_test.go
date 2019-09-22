@@ -318,3 +318,29 @@ func TestCreateWhereClause(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateFilterClause(t *testing.T) {
+	f1 := filter{"age", ">", "33"}
+	f2 := filter{"skills", "<>", "golang"}
+	f3 := filter{"cars", ">=", "2"}
+	f4 := filter{"cars", ">", "4"}
+	f5 := filter{"cars", "<", "4"}
+	f6 := filter{"cars", "<=", "5"}
+	list := []filter{f1, f2, f3, f4, f5, f6}
+	c := make(chan filterClause)
+	go createFilterClause(list, c)
+	filter := <-c
+	if !filter.exists {
+		t.Errorf("filter clauses should exists; got %v", filter.exists)
+	}
+	expectedCLAUSE := " age > $%v AND skills <> $%v AND cars >= $%v AND cars > $%v AND cars < $%v AND cars <= $%v"
+	if filter.clause != expectedCLAUSE {
+		t.Errorf("filter clause should be %v; got %v", expectedCLAUSE, filter.clause)
+	}
+	rightARGS := []interface{}{33, "golang", 2, 4, 4, 5}
+	for i := 0; i < len(filter.args); i++ {
+		if filter.args[i] != rightARGS[i] {
+			t.Errorf("where clause arg number %v should be %v; got %v", i, rightARGS[i], filter.args[i])
+		}
+	}
+}
