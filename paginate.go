@@ -116,82 +116,6 @@ type parameter struct {
 	value string
 }
 
-func getParameters(colNames []string, u url.URL, c chan parameters) {
-	decodedURL, _ := url.PathUnescape(u.String())
-	list := make(parameters, 0)
-	i := strings.Index(decodedURL, "?")
-	if i == -1 {
-		c <- list
-		return
-	}
-
-	getP := func(key, val, char string) (bool, parameter) {
-		p := parameter{}
-		if strings.Contains(val, char) {
-			if val[:len(char)] == char && len(val) > len(char) {
-				p.name = key
-				p.sign = char
-				p.value = val[len(char):]
-				return true, p
-			}
-		}
-		return false, p
-	}
-	params := strings.Split(decodedURL[i+1:], "&")
-	for _, n := range colNames {
-		for _, p := range params {
-			if len(p) <= len(n) {
-				continue
-			}
-			key, value := p[:len(n)], p[len(n):]
-			if key != n {
-				continue
-			}
-			// order matters
-			if ok, newP := getP(key, value, gte); ok {
-				list = append(list, newP)
-				continue
-			}
-			if ok, newP := getP(key, value, lte); ok {
-				list = append(list, newP)
-				continue
-			}
-			if ok, newP := getP(key, value, ne); ok {
-				list = append(list, newP)
-				continue
-			}
-			if ok, newP := getP(key, value, gt); ok {
-				list = append(list, newP)
-				continue
-			}
-			if ok, newP := getP(key, value, lt); ok {
-				list = append(list, newP)
-				continue
-			}
-			if ok, newP := getP(key, value, eq); ok {
-				list = append(list, newP)
-				continue
-			}
-		}
-	}
-	// as an special case we need to also get our custom sort parameter
-	sort := "sort"
-	for _, p := range params {
-		if len(p) <= len(sort) {
-			continue
-		}
-		key, value := p[:len(sort)], p[len(sort):]
-		if key != sort {
-			continue
-		}
-		if ok, newP := getP(key, value, eq); ok {
-			list = append(list, newP)
-			continue
-		}
-	}
-	c <- list
-}
-
 func NewPaginator(tableName string, colNames []string, u url.URL) Paginator {
 	var paginator Paginator
 	c := make(chan parameters)
@@ -276,6 +200,82 @@ func (p *pagination) SetTotalResult(size int) {
 
 func (p *pagination) SetPageCount(count int) {
 	p.response.PageCount = count
+}
+
+func getParameters(colNames []string, u url.URL, c chan parameters) {
+	decodedURL, _ := url.PathUnescape(u.String())
+	list := make(parameters, 0)
+	i := strings.Index(decodedURL, "?")
+	if i == -1 {
+		c <- list
+		return
+	}
+
+	getP := func(key, val, char string) (bool, parameter) {
+		p := parameter{}
+		if strings.Contains(val, char) {
+			if val[:len(char)] == char && len(val) > len(char) {
+				p.name = key
+				p.sign = char
+				p.value = val[len(char):]
+				return true, p
+			}
+		}
+		return false, p
+	}
+	params := strings.Split(decodedURL[i+1:], "&")
+	for _, n := range colNames {
+		for _, p := range params {
+			if len(p) <= len(n) {
+				continue
+			}
+			key, value := p[:len(n)], p[len(n):]
+			if key != n {
+				continue
+			}
+			// order matters
+			if ok, newP := getP(key, value, gte); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, lte); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, ne); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, gt); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, lt); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, eq); ok {
+				list = append(list, newP)
+				continue
+			}
+		}
+	}
+	// as an special case we need to also get our custom sort parameter
+	sort := "sort"
+	for _, p := range params {
+		if len(p) <= len(sort) {
+			continue
+		}
+		key, value := p[:len(sort)], p[len(sort):]
+		if key != sort {
+			continue
+		}
+		if ok, newP := getP(key, value, eq); ok {
+			list = append(list, newP)
+			continue
+		}
+	}
+	c <- list
 }
 
 func getRequestData(v url.Values) paginationRequest {
