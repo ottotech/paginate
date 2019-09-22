@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"reflect"
+	//"reflect"
 	"testing"
 )
 
@@ -195,7 +195,7 @@ func TestNewPaginator(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	expectedSQL := "SELECT column1, column2, column3, column4, column5, count(*) over() FROM test WHERE column5 = $1 AND column1 > $2 AND column2 < $3 AND column3 >= $4 AND column4 <= $5 ORDER BY column1 ASC,column2 DESC,id LIMIT 15 OFFSET 0"
+	expectedSQL := "SELECT column1, column2, column3, column4, column5, count(*) over() FROM test WHERE column1 > $1 AND column2 < $2 AND column3 >= $3 AND column4 <= $4 AND column5 = $5 ORDER BY column1 ASC,column2 DESC,id LIMIT 15 OFFSET 0"
 	paginator := NewPaginator(tableName, colNames, *u)
 	paginator.SetPageCount(15)
 	paginator.SetTotalResult(30)
@@ -203,7 +203,7 @@ func TestNewPaginator(t *testing.T) {
 	if sql != expectedSQL {
 		t.Errorf("expected sql:\n %v; \ngot %v\n", expectedSQL, sql)
 	}
-	rightARGS := []interface{}{"otto", 2, 4, 40, 7}
+	rightARGS := []interface{}{"2", "4", "40", "7", "otto"}
 	for i := 0; i < len(args); i++ {
 		if args[i] != rightARGS[i] {
 			t.Errorf("arg $%v should be %v; got %v", i, rightARGS[i], args[i])
@@ -237,7 +237,7 @@ func TestNewPaginatorWithLimit(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	expectedSQL := "SELECT column1, column2, column3, column4, column5, count(*) over() FROM test WHERE column5 = $1 AND column1 > $2 AND column2 < $3 AND column3 >= $4 AND column4 <= $5 ORDER BY column1 ASC,column2 DESC,id LIMIT 10 OFFSET 10"
+	expectedSQL := "SELECT column1, column2, column3, column4, column5, count(*) over() FROM test WHERE column1 > $1 AND column2 < $2 AND column3 >= $3 AND column4 <= $4 AND column5 = $5 ORDER BY column1 ASC,column2 DESC,id LIMIT 10 OFFSET 10"
 	paginator := NewPaginatorWithLimit(10, tableName, colNames, *u)
 	paginator.SetPageCount(10)
 	paginator.SetTotalResult(30)
@@ -245,7 +245,7 @@ func TestNewPaginatorWithLimit(t *testing.T) {
 	if sql != expectedSQL {
 		t.Errorf("expected sql:\n %v; \ngot %v\n", expectedSQL, sql)
 	}
-	rightARGS := []interface{}{"otto", 2, 4, 40, 7}
+	rightARGS := []interface{}{"2", "4", "40", "7", "otto"}
 	for i := 0; i < len(args); i++ {
 		if args[i] != rightARGS[i] {
 			t.Errorf("arg $%v should be %v; got %v", i, rightARGS[i], args[i])
@@ -298,12 +298,12 @@ func TestGetRequestData_with_no_data(t *testing.T) {
 
 func TestCreateWhereClause(t *testing.T) {
 	colNames := []string{"name", "system", "age"}
-	values := url.Values{}
-	values.Add("name", "otto")
-	values.Add("system", "hipaca")
-	values.Add("age", "33")
+	param1 := parameter{"name", "=", "otto"}
+	param2 := parameter{"system", "=", "hipaca"}
+	param3 := parameter{"age", "=", "33"}
+	params := parameters{param1, param2, param3}
 	c := make(chan whereClause)
-	go createWhereClause(colNames, values, c)
+	go createWhereClause(colNames, params, c)
 	where := <-c
 	if !where.exists {
 		t.Errorf("where clauses should exists; got %v", where.exists)
@@ -320,28 +320,29 @@ func TestCreateWhereClause(t *testing.T) {
 	}
 }
 
-func TestCreateFilterClause(t *testing.T) {
-	f1 := filter{"age", ">", "33"}
-	f2 := filter{"skills", "<>", "golang"}
-	f3 := filter{"cars", ">=", "2"}
-	f4 := filter{"cars", ">", "4"}
-	f5 := filter{"cars", "<", "4"}
-	f6 := filter{"cars", "<=", "5"}
-	list := []filter{f1, f2, f3, f4, f5, f6}
-	c := make(chan filterClause)
-	go createFilterClause(list, c)
-	filter := <-c
-	if !filter.exists {
-		t.Errorf("filter clauses should exists; got %v", filter.exists)
+func TestCreateWhereClause_with_filters(t *testing.T) {
+	colNames := []string{"age", "skills", "cars"}
+	param1 := parameter{"age", ">", "33"}
+	param2 := parameter{"skills", "<>", "golang"}
+	param3 := parameter{"cars", ">=", "2"}
+	param4 := parameter{"cars", ">", "4"}
+	param5 := parameter{"cars", "<", "4"}
+	param6 := parameter{"cars", "<=", "5"}
+	params := parameters{param1, param2, param3, param4, param5, param6}
+	c := make(chan whereClause)
+	go createWhereClause(colNames, params, c)
+	where := <-c
+	if !where.exists {
+		t.Errorf("where clauses should exists; got %v", where.exists)
 	}
-	expectedCLAUSE := " age > $%v AND skills <> $%v AND cars >= $%v AND cars > $%v AND cars < $%v AND cars <= $%v"
-	if filter.clause != expectedCLAUSE {
-		t.Errorf("filter clause should be %v; got %v", expectedCLAUSE, filter.clause)
+	expectedCLAUSE := " WHERE age > $%v AND skills <> $%v AND cars >= $%v AND cars > $%v AND cars < $%v AND cars <= $%v"
+	if where.clause != expectedCLAUSE {
+		t.Errorf("filter clause should be %v; got %v", expectedCLAUSE, where.clause)
 	}
-	rightARGS := []interface{}{33, "golang", 2, 4, 4, 5}
-	for i := 0; i < len(filter.args); i++ {
-		if filter.args[i] != rightARGS[i] {
-			t.Errorf("where clause arg number %v should be %v; got %v", i, rightARGS[i], filter.args[i])
+	rightARGS := []interface{}{"33", "golang", "2", "4", "4", "5"}
+	for i := 0; i < len(where.args); i++ {
+		if where.args[i] != rightARGS[i] {
+			t.Errorf("where clause arg number %v should be %v; got %v", i, rightARGS[i], where.args[i])
 		}
 	}
 }
@@ -384,10 +385,9 @@ func TestCreatePaginationClause_with_page_lt_1(t *testing.T) {
 
 func TestCreateOrderByClause_with_sorting_options(t *testing.T) {
 	colNames := []string{"name", "lastname", "age", "address"}
-	values := url.Values{}
-	values.Add("sort", " name,-lastname,-age, address")
+	params := parameters{{"sort", "=", "+name,-lastname,-age,+address"}}
 	c := make(chan string)
-	go createOrderByClause(values, colNames, c)
+	go createOrderByClause(params, colNames, c)
 	clause := <-c
 	expectedCLAUSE := " ORDER BY name ASC,lastname DESC,age DESC,address ASC,id"
 	if clause != expectedCLAUSE {
@@ -397,33 +397,12 @@ func TestCreateOrderByClause_with_sorting_options(t *testing.T) {
 
 func TestCreateOrderByClause_with_no_sorting_options(t *testing.T) {
 	colNames := []string{"name", "lastname", "age", "address"}
-	values := url.Values{}
+	params := parameters{}
 	c := make(chan string)
-	go createOrderByClause(values, colNames, c)
+	go createOrderByClause(params, colNames, c)
 	clause := <-c
 	expectedCLAUSE := " ORDER BY id"
 	if clause != expectedCLAUSE {
 		t.Errorf("expected clause should be %v, got %v", expectedCLAUSE, clause)
-	}
-}
-
-func TestGetFilters(t *testing.T) {
-	decodedPath := "http://ottotech.com?column1>2&column2<4&column3>=40&column4<=7"
-	colNames := []string{"column1", "column2", "column3", "column4"}
-	c := make(chan []filter)
-	go getFilters(decodedPath, colNames, c)
-	filters := <-c
-	if len(filters) != 4 {
-		t.Errorf("we should have %v filters; got only %v", 4, len(filters))
-	}
-	f1 := filter{"column1", ">", "2"}
-	f2 := filter{"column2", "<", "4"}
-	f3 := filter{"column3", ">=", "40"}
-	f4 := filter{"column4", "<=", "7"}
-	list := []filter{f1, f2, f3, f4}
-	for i, f := range filters {
-		if !reflect.DeepEqual(f, list[i]) {
-			t.Errorf("filter %+v is not equal to filter %+v", f, list[i])
-		}
 	}
 }

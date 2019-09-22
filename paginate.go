@@ -22,7 +22,6 @@ package paginate
 
 import (
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -34,6 +33,7 @@ const (
 )
 
 const (
+	eq  = "="
 	gt  = ">"
 	lt  = "<"
 	gte = ">="
@@ -75,9 +75,8 @@ type pagination struct {
 	request    paginationRequest
 	response   PaginationResponse
 	tableName  string
-	parameters url.Values
-	filters    []filter
 	colNames   []string
+	parameters parameters
 }
 
 type paginationRequest struct {
@@ -100,95 +99,153 @@ type whereClause struct {
 	exists bool
 }
 
-type filterClause struct {
-	clause string
-	args   []interface{}
-	exists bool
+type parameters []parameter
+
+func (params *parameters) getParameter(name string) (parameter, bool) {
+	for _, p := range *params {
+		if p.name == name {
+			return p, true
+		}
+	}
+	return parameter{}, false
 }
 
-type filter struct {
-	field string
+type parameter struct {
+	name  string
 	sign  string
 	value string
 }
 
+func getParameters(colNames []string, u url.URL, c chan parameters) {
+	decodedURL, _ := url.PathUnescape(u.String())
+	list := make(parameters, 0)
+	i := strings.Index(decodedURL, "?")
+	if i == -1 {
+		c <- list
+		return
+	}
+
+	getP := func(key, val, char string) (bool, parameter) {
+		p := parameter{}
+		if strings.Contains(val, char) {
+			if val[:len(char)] == char && len(val) > len(char) {
+				p.name = key
+				p.sign = char
+				p.value = val[len(char):]
+				return true, p
+			}
+		}
+		return false, p
+	}
+	params := strings.Split(decodedURL[i+1:], "&")
+	for _, n := range colNames {
+		for _, p := range params {
+			if len(p) <= len(n) {
+				continue
+			}
+			key, value := p[:len(n)], p[len(n):]
+			if key != n {
+				continue
+			}
+			// order matters
+			if ok, newP := getP(key, value, gte); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, lte); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, ne); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, gt); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, lt); ok {
+				list = append(list, newP)
+				continue
+			}
+			if ok, newP := getP(key, value, eq); ok {
+				list = append(list, newP)
+				continue
+			}
+		}
+	}
+	// as an special case we need to also get our custom sort parameter
+	sort := "sort"
+	for _, p := range params {
+		if len(p) <= len(sort) {
+			continue
+		}
+		key, value := p[:len(sort)], p[len(sort):]
+		if key != sort {
+			continue
+		}
+		if ok, newP := getP(key, value, eq); ok {
+			list = append(list, newP)
+			continue
+		}
+	}
+	c <- list
+}
+
 func NewPaginator(tableName string, colNames []string, u url.URL) Paginator {
 	var paginator Paginator
-	c := make(chan []filter)
-	decodedURL, err := url.QueryUnescape(u.String())
-	if err != nil {
-		log.Println(err)
-	}
-	go getFilters(decodedURL, colNames, c)
+	c := make(chan parameters)
+	go getParameters(colNames, u, c)
 	v := u.Query()
 	p := new(pagination)
 	p.tableName = tableName
 	p.colNames = colNames
-	p.parameters = v
 	p.request = getRequestData(v)
-	p.filters = <-c
+	p.parameters = <-c
 	paginator = p
 	return paginator
 }
 
 func NewPaginatorWithLimit(pageSize int, tableName string, colNames []string, u url.URL) Paginator {
 	var paginator Paginator
-	c := make(chan []filter)
-	decodedURL, err := url.QueryUnescape(u.String())
-	if err != nil {
-		log.Println(err)
-	}
-	go getFilters(decodedURL, colNames, c)
+	c := make(chan parameters)
+	go getParameters(colNames, u, c)
 	v := u.Query()
 	p := new(pagination)
 	p.tableName = tableName
 	p.colNames = colNames
-	p.parameters = v
 	p.request = getRequestData(v)
-	p.filters = <-c
 	p.request.pageSize = pageSize // here we override the pageSize
+	p.parameters = <-c
 	paginator = p
 	return paginator
 }
 
 func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
 	var s string
-	var AND = " AND"
-	var WHERE = " WHERE"
 	c1 := make(chan whereClause)
-	c2 := make(chan filterClause)
 	c3 := make(chan string)
 	c4 := make(chan string)
 	go createWhereClause(p.colNames, p.parameters, c1)
-	go createFilterClause(p.filters, c2)
 	go createPaginationClause(p.request.pageNumber, p.request.pageSize, c3)
 	go createOrderByClause(p.parameters, p.colNames, c4)
 	where := <-c1
-	filter := <-c2
 	pagination := <-c3
 	order := <-c4
 
-	numArgs := len(where.args) + len(filter.args)
+	numArgs := len(where.args)
 	placeholders := make([]interface{}, 0)
 	for i := 1; i < numArgs+1; i++ {
 		placeholders = append(placeholders, i)
 	}
-	args := make([]interface{}, 0)
-	args = append(args, where.args...)
-	args = append(args, filter.args...)
-	if where.exists && filter.exists {
-		s = "SELECT " + strings.Join(p.colNames, ", ") + ", count(*) over() FROM " + p.tableName + where.clause + AND + filter.clause + order + pagination
-		s = fmt.Sprintf(s, placeholders...)
-	} else if where.exists {
+
+	if where.exists {
 		s = "SELECT " + strings.Join(p.colNames, ", ") + ", count(*) over() FROM " + p.tableName + where.clause + order + pagination
-		s = fmt.Sprintf(s, placeholders...)
-	} else if filter.exists {
-		s = "SELECT " + strings.Join(p.colNames, ", ") + ", count(*) over() FROM " + p.tableName + WHERE + filter.clause + order + pagination
 		s = fmt.Sprintf(s, placeholders...)
 	} else {
 		s = "SELECT " + strings.Join(p.colNames, ", ") + ", count(*) over() FROM " + p.tableName + order + pagination
 	}
-	return s, args, nil
+	return s, where.args, nil
 }
 
 func (p *pagination) Response() PaginationResponse {
@@ -248,7 +305,7 @@ func getRequestData(v url.Values) paginationRequest {
 	return p
 }
 
-func createWhereClause(colNames []string, v url.Values, c chan whereClause) {
+func createWhereClause(colNames []string, params parameters, c chan whereClause) {
 	w := whereClause{}
 	var WHERE = " WHERE "
 	var AND = " AND "
@@ -258,9 +315,11 @@ func createWhereClause(colNames []string, v url.Values, c chan whereClause) {
 
 	// map all db column names with the url parameters
 	for _, name := range colNames {
-		if val := v.Get(name); val != "" {
-			values = append(values, val)
-			clauses = append(clauses, name+" = $%v")
+		for _, p := range params {
+			if p.name == name {
+				values = append(values, p.value)
+				clauses = append(clauses, p.name+" "+p.sign+" $%v")
+			}
 		}
 	}
 	// use appropriate `separator` to join the clauses
@@ -274,38 +333,6 @@ func createWhereClause(colNames []string, v url.Values, c chan whereClause) {
 	w.args = values
 	w.exists = len(clauses) > 0
 	c <- w
-}
-
-func createFilterClause(filters []filter, c chan filterClause) {
-	var AND = " AND"
-	var s = ""
-	f := filterClause{}
-	args := make([]interface{}, 0)
-	for i, f := range filters {
-		if v, err := strconv.Atoi(f.value); err == nil {
-			args = append(args, v)
-		} else {
-			args = append(args, f.value)
-		}
-
-		if i == 0 {
-			if len(filters) > 1 {
-				s += fmt.Sprintf(" %s %s ", f.field, f.sign) + "$%v" + AND
-				continue
-			}
-			s += fmt.Sprintf(" %s %s ", f.field, f.sign) + "$%v"
-			continue
-		}
-		if i == len(filters)-1 {
-			s += fmt.Sprintf(" %s %s ", f.field, f.sign) + "$%v"
-			continue
-		}
-		s += fmt.Sprintf(" %s %s ", f.field, f.sign) + "$%v" + AND
-	}
-	f.clause = s
-	f.args = args
-	f.exists = s != ""
-	c <- f
 }
 
 func createPaginationClause(pageNumber int, pageSize int, c chan string) {
@@ -330,16 +357,16 @@ func createPaginationClause(pageNumber int, pageSize int, c chan string) {
 	c <- clause
 }
 
-func createOrderByClause(v url.Values, colNames []string, c chan string) {
+func createOrderByClause(params parameters, colNames []string, c chan string) {
 	var ASC = "ASC"
 	var DESC = "DESC"
 	clauses := make([]string, 0)
-	sort := v.Get("sort")
-	if sort == "" {
+	sort, exists := params.getParameter("sort")
+	if !exists {
 		c <- " ORDER BY id"
 		return
 	}
-	fields := strings.Split(sort, ",")
+	fields := strings.Split(sort.value, ",")
 	for _, v := range fields {
 		orderBy := string(v[0])
 		field := string(v[1:])
@@ -348,7 +375,7 @@ func createOrderByClause(v url.Values, colNames []string, c chan string) {
 				continue
 			}
 			if field == f {
-				if orderBy == " " {
+				if orderBy == "+" {
 					clauses = append(clauses, field+" "+ASC)
 				}
 				if orderBy == "-" {
@@ -360,62 +387,4 @@ func createOrderByClause(v url.Values, colNames []string, c chan string) {
 	clauses = append(clauses, "id")
 	clauseSTR := strings.Join(clauses, ",")
 	c <- " ORDER BY " + clauseSTR
-}
-
-func getFilters(decodedPath string, colNames []string, c chan []filter) {
-	s := make([]filter, 0)
-	i := strings.Index(decodedPath, "?")
-	if i == -1 {
-		c <- s
-		return
-	}
-
-	getF := func(key, val, char string) (bool, filter) {
-		f := filter{}
-		if strings.Contains(val, char) {
-			if val[:len(char)] == char && len(val) > len(char) {
-				f.field = key
-				f.sign = char
-				f.value = val[len(char):]
-				return true, f
-			}
-		}
-		return false, f
-	}
-
-	params := strings.Split(decodedPath[i+1:], "&")
-	for _, n := range colNames {
-		for _, p := range params {
-
-			if len(p) <= len(n) {
-				continue
-			}
-			key, value := p[:len(n)], p[len(n):]
-			if key != n {
-				continue
-			}
-			// order matters
-			if ok, f := getF(key, value, gte); ok {
-				s = append(s, f)
-				continue
-			}
-			if ok, f := getF(key, value, lte); ok {
-				s = append(s, f)
-				continue
-			}
-			if ok, f := getF(key, value, ne); ok {
-				s = append(s, f)
-				continue
-			}
-			if ok, f := getF(key, value, gt); ok {
-				s = append(s, f)
-				continue
-			}
-			if ok, f := getF(key, value, lt); ok {
-				s = append(s, f)
-				continue
-			}
-		}
-	}
-	c <- s
 }
