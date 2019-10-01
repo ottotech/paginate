@@ -115,7 +115,6 @@ type parameter struct {
 }
 
 func NewPaginator(tableName string, colNames []string, u url.URL) Paginator {
-	var paginator Paginator
 	c := make(chan parameters)
 	go getParameters(colNames, u, c)
 	v := u.Query()
@@ -124,12 +123,10 @@ func NewPaginator(tableName string, colNames []string, u url.URL) Paginator {
 	p.colNames = colNames
 	p.request = getRequestData(v)
 	p.parameters = <-c
-	paginator = p
-	return paginator
+	return p
 }
 
 func NewPaginatorWithLimit(pageSize int, tableName string, colNames []string, u url.URL) Paginator {
-	var paginator Paginator
 	c := make(chan parameters)
 	go getParameters(colNames, u, c)
 	v := u.Query()
@@ -139,8 +136,7 @@ func NewPaginatorWithLimit(pageSize int, tableName string, colNames []string, u 
 	p.request = getRequestData(v)
 	p.request.pageSize = pageSize // here we override the pageSize
 	p.parameters = <-c
-	paginator = p
-	return paginator
+	return p
 }
 
 func (p *pagination) Paginate() (sql string, values []interface{}, err error) {
