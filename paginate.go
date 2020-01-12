@@ -29,7 +29,7 @@ const (
 	PageSize = 30
 )
 
-// Available filter operator
+// Available filter operators
 const (
 	eq  = "="
 	gt  = ">"
@@ -181,7 +181,6 @@ func (p *pagination) Response() PaginationResponse {
 		p.response.NextPageNumber = 0
 		p.response.HasNextPage = false
 	}
-
 	if p.response.PageNumber > 1 {
 		p.response.HasPreviousPage = true
 	}
@@ -363,9 +362,11 @@ func createOrderByClause(params parameters, colNames []string, c chan string) {
 	fields := strings.Split(sort.value, ",")
 	for _, v := range fields {
 		orderBy := string(v[0])
-		field := string(v[1:])
+		field := v[1:]
 		for _, f := range colNames {
 			if f == "id" {
+				// we will always order the records by ID (see below). In order
+				// to keep the same order between pages or results
 				continue
 			}
 			if field == f {
