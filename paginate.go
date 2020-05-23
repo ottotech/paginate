@@ -160,6 +160,9 @@ func NewPaginatorWithLimit(pageSize int, tableName string, colNames []string, u 
 	p.tableName = tableName
 	p.colNames = colNames
 	p.request = getRequestData(v)
+	if pageSize <= 0 {
+		pageSize = PageSize
+	}
 	p.request.pageSize = pageSize // here we override the pageSize
 	p.parameters = <-c
 	return p
@@ -302,6 +305,9 @@ func getRequestData(v url.Values) paginationRequest {
 	if page := v.Get("page"); page != "" {
 		page, err := strconv.Atoi(page)
 		if err != nil {
+			page = 1
+		}
+		if page <= 0 {
 			page = 1
 		}
 		p.pageNumber = page
