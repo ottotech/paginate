@@ -3,7 +3,7 @@ Package paginate provides a basic Paginator interface to do pagination of databa
 Its primary job is to generate a raw sql command with the corresponding values
 which can be executed in a database.
 
-This package will also handle basic filtering of records by creating a sql commands
+This package will also handle basic filtering of records by creating an sql command
 based on the parameters coming from a request. And –if used correctly- Paginator can
 also return a PaginationResponse which contains useful information for clients to do
 proper pagination.
