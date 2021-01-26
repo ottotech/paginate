@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	_ "github.com/lib/pq"
 	"github.com/ottotech/paginate"
@@ -35,7 +36,7 @@ func main() {
 	}
 	fmt.Println("You connected to your database.")
 
-	u, err := url.Parse("http://localhost?system=olms")
+	u, err := url.Parse("http://localhost?system=olms&player=martha&player=otto")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,6 +50,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println(cmd, args)
 
 	rows, err := db.Query(cmd, args...)
 	if err != nil {
@@ -71,7 +74,7 @@ func main() {
 	}
 
 	result := make([]HistoryEvent, 0)
-	for paginator.Next() {
+	for paginator.NextData() {
 		event := HistoryEvent{}
 		err = paginator.Scan(&event)
 		if err != nil {
@@ -81,4 +84,10 @@ func main() {
 	}
 
 	fmt.Printf("This is the result: %+v\n", result)
+	sb, err := json.Marshal(result)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(sb))
+	fmt.Printf("%+v\n", paginator.Response())
 }
