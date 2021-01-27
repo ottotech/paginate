@@ -5,8 +5,9 @@ package paginate
 // For example, when using NewPaginator, if NewPaginator fails to retrieve
 // the page size from the request url it will fallback to this value.
 const (
-	PageSize = 30
-	tagsep   = ";"
+	defaultPageSize   = 30
+	defaultPageNumber = 1
+	tagsep            = ";"
 )
 
 // Constants that specify the available filter operators.

@@ -89,10 +89,10 @@ func getRequestData(v url.Values) paginationRequest {
 	if page := v.Get("page"); page != "" {
 		page, err := strconv.Atoi(page)
 		if err != nil {
-			page = 1
+			page = defaultPageNumber
 		}
 		if page <= 0 {
-			page = 1
+			page = defaultPageNumber
 		}
 		p.pageNumber = page
 	} else {
@@ -102,14 +102,14 @@ func getRequestData(v url.Values) paginationRequest {
 	if pageSize := v.Get("page_size"); pageSize != "" {
 		pageSize, err := strconv.Atoi(pageSize)
 		if err != nil {
-			pageSize = PageSize
+			pageSize = defaultPageSize
 		}
 		if pageSize <= 0 {
-			pageSize = PageSize
+			pageSize = defaultPageSize
 		}
 		p.pageSize = pageSize
 	} else {
-		p.pageSize = PageSize
+		p.pageSize = defaultPageSize
 	}
 	return p
 }
@@ -147,12 +147,6 @@ func createWhereClause(colNames []string, params parameters, c chan whereClause)
 func createPaginationClause(pageNumber int, pageSize int, c chan string) {
 	var clause string
 	var offset int
-
-	if pageSize > PageSize {
-		pageSize = PageSize
-	} else if pageSize < 0 {
-		pageSize = PageSize
-	}
 
 	clause += fmt.Sprintf(" LIMIT %v ", pageSize)
 

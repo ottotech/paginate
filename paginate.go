@@ -74,6 +74,14 @@ type paginator struct {
 	// rv holds the reflection value of the given table.
 	rv reflect.Value
 
+	// pageSize represents the size in number of rows that we want per page.
+	// We will get this value from the request.
+	pageSize int
+
+	// pageNumber represents the "number" of the page that the end user wants
+	// to see. We will get this value from the request.
+	pageNumber int
+
 	// totalSize represents the total number of records in the given table in
 	// the database.
 	totalSize int
@@ -97,7 +105,6 @@ type paginator struct {
 	// and run addRow the first time Scan is used.
 	once resync.Once
 
-	request    paginationRequest
 	response   PaginationResponse
 	parameters parameters
 }
@@ -108,7 +115,7 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 	c3 := make(chan string)
 	c4 := make(chan string)
 	go createWhereClause(p.cols, p.parameters, c1)
-	go createPaginationClause(p.request.pageNumber, p.request.pageSize, c3)
+	go createPaginationClause(p.pageNumber, p.pageSize, c3)
 	go createOrderByClause(p.parameters, p.cols, c4)
 	where := <-c1
 	pagination := <-c3
@@ -130,13 +137,13 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 }
 
 func (p *paginator) Response() PaginationResponse {
-	p.response.PageNumber = p.request.pageNumber
+	p.response.PageNumber = p.pageNumber
 
-	if (p.request.pageNumber * p.request.pageSize) < p.totalSize {
-		p.response.NextPageNumber = p.request.pageNumber + 1
+	if (p.pageNumber * p.pageSize) < p.totalSize {
+		p.response.NextPageNumber = p.pageNumber + 1
 		p.response.HasNextPage = true
 	}
-	if (p.request.pageNumber * p.request.pageSize) == p.totalSize {
+	if (p.pageNumber * p.pageSize) == p.totalSize {
 		p.response.NextPageNumber = 0
 		p.response.HasNextPage = false
 	}

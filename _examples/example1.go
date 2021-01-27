@@ -37,12 +37,17 @@ func main() {
 	}
 	fmt.Println("You connected to your database.")
 
-	u, err := url.Parse("http://localhost?system=olms&player=otto")
+	u, err := url.Parse("http://localhost?system=olms")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	paginator, err := paginate.NewPaginator(HistoryEvent{}, "events", *u)
+	paginator, err := paginate.NewPaginator(
+		HistoryEvent{},
+		*u,
+		paginate.TableName("events"),
+		paginate.PageSize(2),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,8 +56,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Println(cmd, args)
 
 	rows, err := db.Query(cmd, args...)
 	if err != nil {
