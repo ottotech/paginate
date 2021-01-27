@@ -1,11 +1,12 @@
 package paginate
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/matryer/resync"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -33,10 +34,6 @@ type Paginator interface {
 
 // paginator is a concrete type that implements the Paginator interface.
 type paginator struct {
-	request    paginationRequest
-	response   PaginationResponse
-	parameters parameters
-
 	// table is a representation of a database table and its columns.
 	table interface{}
 
@@ -98,7 +95,11 @@ type paginator struct {
 
 	// once is used by Scan. It's purpose is to set only once started, pageSize,
 	// and run addRow the first time Scan is used.
-	once sync.Once
+	once resync.Once
+
+	request    paginationRequest
+	response   PaginationResponse
+	parameters parameters
 }
 
 func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
@@ -288,8 +289,7 @@ func (p *paginator) GetRowPtrArgs() []interface{} {
 		T := reflect.Indirect(p.rv).FieldByName(fieldName).Interface()
 		switch T.(type) {
 		case string:
-			var s string
-			s = ""
+			var s sql.NullString
 			p.tmp = append(p.tmp, &s)
 		case int:
 			var i int
@@ -302,22 +302,22 @@ func (p *paginator) GetRowPtrArgs() []interface{} {
 			i16 = 0
 			p.tmp = append(p.tmp, &i16)
 		case int32:
-			var i32 int32
+			var i32 sql.NullInt32
 			p.tmp = append(p.tmp, &i32)
 		case int64:
-			var i64 int64
+			var i64 sql.NullInt64
 			p.tmp = append(p.tmp, &i64)
 		case bool:
-			var b bool
+			var b sql.NullBool
 			p.tmp = append(p.tmp, &b)
 		case float32:
 			var f32 float32
 			p.tmp = append(p.tmp, &f32)
 		case float64:
-			var f64 float64
+			var f64 sql.NullFloat64
 			p.tmp = append(p.tmp, &f64)
 		case time.Time:
-			var t time.Time
+			var t sql.NullTime
 			p.tmp = append(p.tmp, &t)
 		}
 	}
@@ -330,19 +330,83 @@ func (p *paginator) GetRowPtrArgs() []interface{} {
 	return p.tmp
 }
 
+// addRow adds a new row in p.rows.
+//
+// The elements of p.rows will be instances of the given table struct.
+//
+// addRow will use the p.tmp temporarily values which are pointers
+// scanned by the sql driver to fill in the table struct fields.
+// Once the table struct fields are set addRow will add the table struct
+// to p.rows. As an special case addRow will handle nullable fields with
+// the following nullable types from the sql package:
+//
+// 		- sql.NullString
+// 		- sql.NullInt32
+// 		- sql.NullInt64
+// 		- sql.NullFloat64
+// 		- sql.NullBool
+// 		- sql.NullTime
+//
+// Custom nullable values will not be handled, for example, for
+// values like uint8m, uint16, etc.
+//
+// It is up to GetRowPtrArgs to call addRow each time a new row is
+// read by sql.Rows.Scan. NextData is also responsible to call addRow
+// just in case there are values left in p.tmp. It might be possible
+// that there are values left in p.tmp because the last call to GetRowPtrArgs,
+// for example, will not call addRow to add the p.tmp values into p.rows.
+// Finally, Scan will also call addRow only once in case there values left in
+// p.tmp.
 func (p *paginator) addRow() {
 	row := p.table
-	rv := reflect.ValueOf(&row).Elem()
-	tmpRow := reflect.New(rv.Elem().Type()).Elem()
-	tmpRow.Set(rv.Elem())
+	rowrv := reflect.ValueOf(&row).Elem()
+	tmpRow := reflect.New(rowrv.Elem().Type()).Elem()
+	tmpRow.Set(rowrv.Elem())
 
 	// The below loop condition expression is len(tmp)-1
 	// because of the extra field we are adding in tmp: totalSize.
-	// len(tmp)-1  will give use exactly the field elements we want.
+	// len(tmp)-1  will give us exactly the field elements we want.
 	for i := 0; i < len(p.tmp)-1; i++ {
-		val := reflect.ValueOf(p.tmp[i]).Elem()
-		tmpRow.FieldByName(p.fields[i]).Set(val)
-		rv.Set(tmpRow)
+		T := reflect.Indirect(reflect.ValueOf(p.tmp[i])).Interface()
+		tmpRowField := tmpRow.FieldByName(p.fields[i])
+
+		switch T.(type) {
+		case sql.NullString:
+			ns := sql.NullString{}
+			nsrv := reflect.ValueOf(&ns).Elem()
+			nsrv.Set(reflect.ValueOf(p.tmp[i]).Elem())
+			tmpRowField.SetString(ns.String)
+		case sql.NullInt32:
+			ni32 := sql.NullInt32{}
+			ni32rv := reflect.ValueOf(&ni32).Elem()
+			ni32rv.Set(reflect.ValueOf(p.tmp[i]).Elem())
+			tmpRowField.Set(reflect.ValueOf(ni32.Int32))
+		case sql.NullInt64:
+			ni64 := sql.NullInt64{}
+			ni64rv := reflect.ValueOf(&ni64).Elem()
+			ni64rv.Set(reflect.ValueOf(p.tmp[i]).Elem())
+			tmpRowField.Set(reflect.ValueOf(ni64.Int64))
+		case sql.NullFloat64:
+			nf64 := sql.NullFloat64{}
+			nf64rv := reflect.ValueOf(&nf64).Elem()
+			nf64rv.Set(reflect.ValueOf(p.tmp[i]).Elem())
+			tmpRowField.Set(reflect.ValueOf(nf64.Float64))
+		case sql.NullBool:
+			nb := sql.NullBool{}
+			nbrv := reflect.ValueOf(&nb).Elem()
+			nbrv.Set(reflect.ValueOf(p.tmp[i]).Elem())
+			tmpRowField.Set(reflect.ValueOf(nb.Bool))
+		case sql.NullTime:
+			nt := sql.NullTime{}
+			ntrv := reflect.ValueOf(&nt).Elem()
+			ntrv.Set(reflect.ValueOf(p.tmp[i]).Elem())
+			tmpRowField.Set(reflect.ValueOf(nt.Time))
+		default:
+			val := reflect.ValueOf(p.tmp[i]).Elem()
+			tmpRow.FieldByName(p.fields[i]).Set(val)
+		}
+
+		rowrv.Set(tmpRow)
 	}
 
 	// We need to clear p.tmp so we can reuse it later in another call
@@ -439,4 +503,5 @@ func (p *paginator) Flush() {
 	p.pageCount = 0
 	p.closed = false
 	p.started = false
+	p.once.Reset()
 }

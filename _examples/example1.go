@@ -20,6 +20,7 @@ type HistoryEvent struct {
 	DateCreated      time.Time `json:"date_created"`
 	ObjectIdentifier string    `json:"object_identifier"`
 	Notes            string    `json:"notes"`
+	Dummy            int       `json:"dummy"`
 }
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 	}
 	fmt.Println("You connected to your database.")
 
-	u, err := url.Parse("http://localhost?system=olms&player=martha&player=otto")
+	u, err := url.Parse("http://localhost?system=olms&player=otto")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,16 +60,13 @@ func main() {
 	}
 	defer rows.Close()
 
-	n := 0
 	for rows.Next() {
-
 		err = rows.Scan(paginator.GetRowPtrArgs()...)
 		if err != nil {
 			log.Fatal(err)
 		}
-		n++
-		fmt.Println(n)
 	}
+
 	if err = rows.Err(); err != nil {
 		log.Fatal(err)
 	}
