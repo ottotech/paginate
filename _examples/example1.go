@@ -12,15 +12,15 @@ import (
 )
 
 type HistoryEvent struct {
-	Id               int       `json:"id" paginate:"id"`
-	Performer        string    `json:"performer"`
-	Player           string    `json:"player"`
-	System           string    `json:"system"`
-	Event            string    `json:"event"`
-	DateCreated      time.Time `json:"date_created"`
-	ObjectIdentifier string    `json:"object_identifier"`
-	Notes            string    `json:"notes"`
-	Dummy            int       `json:"dummy"`
+	Id               int       `json:"id" paginate:"id;col=id"`
+	Performer        string    `json:"performer" paginate:"col=performer"`
+	Player           string    `json:"player" paginate:"col=player"`
+	System           string    `json:"system" paginate:"col=system"`
+	Event            string    `json:"event" paginate:"col=event"`
+	DateCreated      time.Time `json:"date_created" paginate:"col=date_created"`
+	ObjectIdentifier string    `json:"object_identifier" paginate:"col=object_identifier"`
+	Notes            string    `json:"notes" paginate:"col=notes"`
+	Dummy            int       `json:"dummy" paginate:"col=dummy"`
 }
 
 func main() {

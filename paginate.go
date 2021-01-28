@@ -221,6 +221,7 @@ func (p *paginator) Response() PaginationResponse {
 	return p.response
 }
 
+// validateTable validates if the given table struct is valid.
 func (p *paginator) validateTable() error {
 	if p.rv.Type().Kind() != reflect.Struct {
 		return fmt.Errorf("paginate: table should be of struct type")
@@ -277,9 +278,35 @@ func (p *paginator) validateTable() error {
 	return nil
 }
 
+// getCols infers the column names of the database table from the given ``table``
+// struct fields. If the fields have the tag "col" the column name will me taken from
+// there. Malformed "col" tags will be ignored silently.
 func (p *paginator) getCols() {
+	const col = "col"
+
+	getColNameFromTags := func(tags []string) (hasTag bool, colName string) {
+		for _, tag := range tags {
+			kv := strings.Split(tag, "=")
+			if len(kv) != 2 {
+				continue
+			}
+			k, v := strings.TrimSpace(kv[0]), strings.TrimSpace(kv[1])
+			if k != col {
+				continue
+			}
+			return true, v
+		}
+		return hasTag, colName
+	}
+
 	for i := 0; i < p.rv.NumField(); i++ {
-		fieldName := p.rv.Type().Field(i).Name
+		field := p.rv.Type().Field(i)
+		tags := strings.Split(field.Tag.Get("paginate"), tagsep)
+		if hastag, name := getColNameFromTags(tags); hastag {
+			p.cols = append(p.cols, name)
+			continue
+		}
+		fieldName := field.Name
 		sneakName := parseCamelCaseToSnakeLowerCase(fieldName)
 		p.cols = append(p.cols, sneakName)
 	}
