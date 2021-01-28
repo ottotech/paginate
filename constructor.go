@@ -85,13 +85,12 @@ func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, erro
 		return p, err
 	}
 
+	// Now let's get all the data that our paginator requires.
 	p.getCols()
 	p.getFieldNames()
 	p.getFilters()
 	p.getID()
+	p.parameters = getParameters(p.cols, u)
 
-	c := make(chan parameters)
-	go getParameters(p.cols, u, c)
-	p.parameters = <-c
 	return p, nil
 }

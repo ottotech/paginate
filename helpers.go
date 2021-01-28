@@ -8,13 +8,13 @@ import (
 	"unicode"
 )
 
-func getParameters(colNames []string, u url.URL, c chan parameters) {
-	decodedURL, _ := url.PathUnescape(u.String())
+func getParameters(colNames []string, u url.URL) parameters {
 	list := make(parameters, 0)
+	decodedURL, _ := url.PathUnescape(u.String())
+
 	i := strings.Index(decodedURL, "?")
 	if i == -1 {
-		c <- list
-		return
+		return list
 	}
 
 	getP := func(key, val, char string) (bool, parameter) {
@@ -85,7 +85,7 @@ func getParameters(colNames []string, u url.URL, c chan parameters) {
 		}
 	}
 
-	c <- list
+	return list
 }
 
 func getRequestData(v url.Values) paginationRequest {

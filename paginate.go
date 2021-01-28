@@ -106,8 +106,8 @@ type paginator struct {
 	// and run addRow the first time Scan is used.
 	once resync.Once
 
-	response   PaginationResponse
 	parameters parameters
+	response   PaginationResponse
 }
 
 func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
