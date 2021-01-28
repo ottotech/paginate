@@ -160,13 +160,14 @@ func createPaginationClause(pageNumber int, pageSize int, c chan string) {
 	c <- clause
 }
 
-func createOrderByClause(params parameters, colNames []string, c chan string) {
+func createOrderByClause(params parameters, colNames []string, id string, c chan string) {
 	var ASC = "ASC"
 	var DESC = "DESC"
+
 	clauses := make([]string, 0)
 	sort, exists := params.getParameter("sort")
 	if !exists {
-		c <- " ORDER BY id"
+		c <- fmt.Sprintf(" ORDER BY %s", id)
 		return
 	}
 	fields := strings.Split(sort.value, ",")
@@ -174,9 +175,10 @@ func createOrderByClause(params parameters, colNames []string, c chan string) {
 		orderBy := string(v[0])
 		field := v[1:]
 		for _, f := range colNames {
-			if f == "id" {
+			if f == id {
 				// we will always order the records by ID (see below). In order
-				// to keep the same order between pages or results
+				// to keep the same order between pages or results deterministic.
+				// See: https://use-the-index-luke.com/sql/partial-results/fetch-next-page
 				continue
 			}
 			if field == f {
@@ -189,7 +191,7 @@ func createOrderByClause(params parameters, colNames []string, c chan string) {
 			}
 		}
 	}
-	clauses = append(clauses, "id")
+	clauses = append(clauses, id)
 	clauseSTR := strings.Join(clauses, ",")
 	c <- " ORDER BY " + clauseSTR
 }

@@ -37,7 +37,7 @@ func main() {
 	}
 	fmt.Println("You connected to your database.")
 
-	u, err := url.Parse("http://localhost?system=olms")
+	u, err := url.Parse("http://localhost?system=olms&sort=-id")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -46,7 +46,6 @@ func main() {
 		HistoryEvent{},
 		*u,
 		paginate.TableName("events"),
-		paginate.PageSize(2),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -56,6 +55,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println(cmd, args)
 
 	rows, err := db.Query(cmd, args...)
 	if err != nil {
@@ -85,10 +86,10 @@ func main() {
 	}
 
 	fmt.Printf("This is the result: %+v\n", result)
-	sb, err := json.Marshal(result)
+	_, err = json.Marshal(result)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(string(sb))
+	//fmt.Println(string(sb))
 	fmt.Printf("%+v\n", paginator.Response())
 }

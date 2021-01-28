@@ -12,7 +12,7 @@ type Option func(p *paginator) error
 // TableName is an option for NewPaginator which indicates
 // the name of the table that we want to paginate in the
 // database. Use this option if the name of your database
-// table cannot be inferred by the given struct table argument.
+// table cannot be inferred by the given struct table name.
 func TableName(name string) Option {
 	return func(p *paginator) error {
 		name = strings.TrimSpace(name)
@@ -43,6 +43,12 @@ func PageSize(size uint) Option {
 
 // NewPaginator creates a Paginator object ready to paginate data from a database table.
 // See TableName and PageSize options for NewPaginator.
+//
+// When the PageSize option is not given paginator will try to get the page size from the
+// request parameter ``page_size``. If there is no ``page_size`` parameter NewPaginator
+// will set the Paginator with the default page size which is 30. When the TableName option
+// is not given, NewPaginator will infer the database table name from the table argument
+// given, so it will extract the name from the struct variable.
 func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, error) {
 	p := &paginator{table: table, rv: reflect.ValueOf(table)}
 
