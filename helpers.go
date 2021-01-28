@@ -29,7 +29,9 @@ func getParameters(colNames []string, u url.URL, c chan parameters) {
 		}
 		return false, p
 	}
+
 	params := strings.Split(decodedURL[i+1:], "&")
+
 	for _, n := range colNames {
 		for _, p := range params {
 			if len(p) <= len(n) {
@@ -66,7 +68,8 @@ func getParameters(colNames []string, u url.URL, c chan parameters) {
 			}
 		}
 	}
-	// as an special case we need to also get our custom sort parameter
+
+	// As an special case we need to also get our custom sort parameter.
 	sort := "sort"
 	for _, p := range params {
 		if len(p) <= len(sort) {
@@ -81,6 +84,7 @@ func getParameters(colNames []string, u url.URL, c chan parameters) {
 			continue
 		}
 	}
+
 	c <- list
 }
 
@@ -111,6 +115,7 @@ func getRequestData(v url.Values) paginationRequest {
 	} else {
 		p.pageSize = defaultPageSize
 	}
+
 	return p
 }
 
@@ -131,13 +136,15 @@ func createWhereClause(colNames []string, params parameters, c chan whereClause)
 			}
 		}
 	}
+
 	// use appropriate `separator` to join the clauses
 	if len(clauses) == 1 {
 		separator = ""
 	} else {
 		separator = AND
 	}
-	// let's map the clause and args to the whereClause struct, and specify if there were some where clauses at all
+
+	// let's map the clause and args to the whereClause struct, and specify if there were some "where clauses" at all
 	w.clause = WHERE + strings.Join(clauses, separator)
 	w.args = values
 	w.exists = len(clauses) > 0
@@ -157,6 +164,7 @@ func createPaginationClause(pageNumber int, pageSize int, c chan string) {
 	}
 
 	clause += fmt.Sprintf("OFFSET %v", offset)
+
 	c <- clause
 }
 
@@ -165,11 +173,13 @@ func createOrderByClause(params parameters, colNames []string, id string, c chan
 	var DESC = "DESC"
 
 	clauses := make([]string, 0)
+
 	sort, exists := params.getParameter("sort")
 	if !exists {
 		c <- fmt.Sprintf(" ORDER BY %s", id)
 		return
 	}
+
 	fields := strings.Split(sort.value, ",")
 	for _, v := range fields {
 		orderBy := string(v[0])
@@ -191,6 +201,7 @@ func createOrderByClause(params parameters, colNames []string, id string, c chan
 			}
 		}
 	}
+
 	clauses = append(clauses, id)
 	clauseSTR := strings.Join(clauses, ",")
 	c <- " ORDER BY " + clauseSTR
@@ -207,9 +218,11 @@ func parseCamelCaseToSnake(camelCase string) string {
 			camelCase = camelCase[:i]
 		}
 	}
+
 	var orderedSlice []string
 	for i := len(s) - 1; i >= 0; i-- {
 		orderedSlice = append(orderedSlice, s[i])
 	}
+
 	return strings.ToLower(strings.Join(orderedSlice, "_"))
 }
