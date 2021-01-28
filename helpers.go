@@ -127,7 +127,6 @@ func createWhereClause(colNames []string, params parameters, c chan whereClause)
 	var clauses []string
 	var values []interface{}
 
-	// map all db column names with the url parameters
 	for _, name := range colNames {
 		for _, p := range params {
 			if p.name == name {
