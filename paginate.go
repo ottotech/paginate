@@ -4,31 +4,89 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/matryer/resync"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 )
 
+// ErrPaginatorIsClosed is an error thrown by Scan when trying to Scan
+// on a Paginator that is closed. Meaning a paginator whose values were
+// already scanned.
 var ErrPaginatorIsClosed = errors.New("paginate: Paginator is closed")
 
-// Paginator is the interface that wraps pagination behaviors.
+// Paginator wraps pagination behaviors.
+//
+// Paginator should be used using the following steps:
+//
+// 	(1) Initialize a Paginator instance with NewPaginator.
+// 	(2) Call Paginate to get the query and arguments for the sql driver you are using.
+// 	(3) Call GetRowPtrArgs() when scanning the rows inside the sql.Rows.Next loop.
+//  (4) Call NextData to loop over the paginated data and Scan the data.
+//  (5) Call Scan inside the NextData loop to copy the paginated data to the given destination.
+//  (6) Call Response to get useful information about the pagination operation.
+//
+// See the examples folder to check how to use Paginator.
 type Paginator interface {
 	// Paginate will use the data consumed by NewPaginator and it will return an
 	// sql command with the corresponding arguments, so it can be run against any
 	// sql driver.
 	Paginate() (sql string, args []interface{}, err error)
 
-	// GetRowPtrArgs
+	// GetRowPtrArgs will prepare the next pointer arguments that are going to be
+	// scanned by sql.Rows.Scan.
+	//
+	// Always run GetRowPtrArgs when scanning the queried rows with the sql package,
+	// for example:
+	//
+	//	 for rows.Next() {
+	//		err = rows.Scan(paginator.GetRowPtrArgs()...)
+	//		if err != nil {
+	//			log.Fatal(err)
+	//		}
+	//	 }
+	//
+	// Every time GetRowPtrArgs gets called it will save the previous scanned values
+	// internally in the Paginator object so you can scan them later. The last call
+	// to GetRowPtrArgs will not save the scanned values, but it will hold them in
+	// a temporarily location until NextData and Scan are called. This is because
+	// there is no way for GetRowPtrArgs to know how many times it will be called
+	// while looping over the sql.Rows.
 	GetRowPtrArgs() []interface{}
 
+	// NextData will loop over the saved values created by GetRowPtrArgs and scanned
+	// by sql.Rows.Scan for ever, until all the paginated data has been scanned by Scan
+	// an exhausted. Always use NextData with a following call to Scan.
 	NextData() bool
-	Scan(dest interface{}) error
-	Flush()
 
-	// Response should be executed after calling SetPageCount and SetTotalResult.
-	// Response will return a PaginationResponse struct containing useful information for clients
-	// of the package so they can do proper and subsequent pagination operations.
+	// Scan will copy the next paginated data in the given destination. The given destination
+	// should be a pointer instance of the same type of the given ``table`` in NewPaginator.
+	//
+	// Scan converts columns read from the database into the following
+	// common Go types:
+	//
+	//    *string
+	//    *int, *int8, *int16, *int32, *int64
+	//    *uint, *uint8, *uint16, *uint32, *uint64
+	//    *bool
+	//    *float32, *float64
+	//
+	// Scan will also convert nullable fields of type string, int32, int64, float64,
+	// bool, time.Time with the following helpers provided by the sql package:
+	//
+	// 		- sql.NullString
+	// 		- sql.NullInt32
+	// 		- sql.NullInt64
+	// 		- sql.NullFloat64
+	// 		- sql.NullBool
+	// 		- sql.NullTime
+	//
+	// Nullable fields of other types will not be handled by Scan.
+	Scan(dest interface{}) error
+
+	// Response returns a PaginationResponse containing useful information about
+	// the pagination, so that clients can do proper and subsequent pagination
+	// operations.
 	Response() PaginationResponse
 }
 
@@ -44,7 +102,9 @@ type paginator struct {
 
 	// id represents the table pk in the database. This value should be
 	// defined in the given table through the tag "id" (e.g. `paginator:"id"`")
-	// in one of the `table` struct `fields`.
+	// in one of the `table` struct `fields`. This value is very important
+	// since it will make the sort order deterministic when paginating the
+	// data.
 	id string
 
 	// cols holds the names of the columns of the database table.
@@ -104,7 +164,7 @@ type paginator struct {
 
 	// once is used by Scan. It's purpose is to set only once started, pageSize,
 	// and run addRow the first time Scan is used.
-	once resync.Once
+	once sync.Once
 
 	parameters parameters
 	response   PaginationResponse
@@ -501,14 +561,4 @@ func (p *paginator) validateDest(dest interface{}) error {
 	}
 
 	return nil
-}
-
-func (p *paginator) Flush() {
-	p.rows = make([]interface{}, 0)
-	p.tmp = make([]interface{}, 0)
-	p.totalSize = 0
-	p.pageCount = 0
-	p.closed = false
-	p.started = false
-	p.once.Reset()
 }
