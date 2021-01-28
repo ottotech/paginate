@@ -139,6 +139,8 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 
 func (p *paginator) Response() PaginationResponse {
 	p.response.PageNumber = p.pageNumber
+	p.response.PageCount = p.pageCount
+	p.response.TotalSize = p.totalSize
 
 	if (p.pageNumber * p.pageSize) < p.totalSize {
 		p.response.NextPageNumber = p.pageNumber + 1
@@ -155,9 +157,6 @@ func (p *paginator) Response() PaginationResponse {
 	if p.response.PageNumber > 1 {
 		p.response.HasPreviousPage = true
 	}
-
-	p.response.PageCount = p.pageCount
-	p.response.TotalSize = p.totalSize
 
 	return p.response
 }
@@ -221,7 +220,7 @@ func (p *paginator) validateTable() error {
 func (p *paginator) getCols() {
 	for i := 0; i < p.rv.NumField(); i++ {
 		fieldName := p.rv.Type().Field(i).Name
-		sneakName := parseCamelCaseToSnake(fieldName)
+		sneakName := parseCamelCaseToSnakeLowerCase(fieldName)
 		p.cols = append(p.cols, sneakName)
 	}
 }
@@ -252,7 +251,7 @@ func (p *paginator) getFilters() {
 		if !hasnofilter(tags) {
 			continue
 		}
-		sneakName := parseCamelCaseToSnake(field.Name)
+		sneakName := parseCamelCaseToSnakeLowerCase(field.Name)
 		p.filters = append(p.filters, sneakName)
 	}
 }
@@ -273,7 +272,7 @@ func (p *paginator) getID() {
 		field := p.rv.Type().Field(i)
 		tags := strings.Split(field.Tag.Get("paginate"), tagsep)
 		if hasID(tags) {
-			id = parseCamelCaseToSnake(field.Name)
+			id = parseCamelCaseToSnakeLowerCase(field.Name)
 			break
 		}
 	}
@@ -282,7 +281,7 @@ func (p *paginator) getID() {
 }
 
 func (p *paginator) getTableName() {
-	name := parseCamelCaseToSnake(p.rv.Type().Name())
+	name := parseCamelCaseToSnakeLowerCase(p.rv.Type().Name())
 	p.name = name
 }
 
@@ -417,7 +416,7 @@ func (p *paginator) addRow() {
 		rowrv.Set(tmpRow)
 	}
 
-	// We need to clear p.tmp so we can reuse it later in another call
+	// We need to clear p.tmp so we can reuse it later for another call
 	// to addRow.
 	p.tmp = make([]interface{}, 0)
 

@@ -100,7 +100,7 @@ func getRequestData(v url.Values) paginationRequest {
 		}
 		p.pageNumber = page
 	} else {
-		p.pageNumber = 1
+		p.pageNumber = defaultPageNumber
 	}
 
 	if pageSize := v.Get("page_size"); pageSize != "" {
@@ -136,14 +136,13 @@ func createWhereClause(colNames []string, params parameters, c chan whereClause)
 		}
 	}
 
-	// use appropriate `separator` to join the clauses
+	// Let's use an appropriate `separator` to join the clauses
 	if len(clauses) == 1 {
 		separator = ""
 	} else {
 		separator = AND
 	}
 
-	// let's map the clause and args to the whereClause struct, and specify if there were some "where clauses" at all
 	w.clause = WHERE + strings.Join(clauses, separator)
 	w.args = values
 	w.exists = len(clauses) > 0
@@ -206,10 +205,10 @@ func createOrderByClause(params parameters, colNames []string, id string, c chan
 	c <- " ORDER BY " + clauseSTR
 }
 
-// parseCamelCaseToSnake parses a camelcase string to a snake case.
-// So for example, if we use as input for this function the following
+// parseCamelCaseToSnakeLowerCase parses a camelcase string to a snake case.
+// lower cased. So for example, if we use as input for this function the following
 // string "myCamelCaseVar" the output would be "my_camel_case_var".
-func parseCamelCaseToSnake(camelCase string) string {
+func parseCamelCaseToSnakeLowerCase(camelCase string) string {
 	var s []string
 	for i := len(camelCase) - 1; i >= 0; i-- {
 		if unicode.IsUpper(rune(camelCase[i])) {
