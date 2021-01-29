@@ -12,12 +12,7 @@ func getParameters(colNames []string, u url.URL) parameters {
 	list := make(parameters, 0)
 	decodedURL, _ := url.PathUnescape(u.String())
 
-	i := strings.Index(decodedURL, "?")
-	if i == -1 {
-		return list
-	}
-
-	getP := func(key, val, char string) (bool, parameter) {
+	getParameter := func(key, val, char string) (bool, parameter) {
 		p := parameter{}
 		if strings.Contains(val, char) {
 			if val[:len(char)] == char && len(val) > len(char) {
@@ -28,6 +23,11 @@ func getParameters(colNames []string, u url.URL) parameters {
 			}
 		}
 		return false, p
+	}
+
+	i := strings.Index(decodedURL, "?")
+	if i == -1 {
+		return list
 	}
 
 	params := strings.Split(decodedURL[i+1:], "&")
@@ -42,27 +42,27 @@ func getParameters(colNames []string, u url.URL) parameters {
 				continue
 			}
 			// order matters
-			if ok, newP := getP(key, value, gte); ok {
+			if ok, newP := getParameter(key, value, gte); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getP(key, value, lte); ok {
+			if ok, newP := getParameter(key, value, lte); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getP(key, value, ne); ok {
+			if ok, newP := getParameter(key, value, ne); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getP(key, value, gt); ok {
+			if ok, newP := getParameter(key, value, gt); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getP(key, value, lt); ok {
+			if ok, newP := getParameter(key, value, lt); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getP(key, value, eq); ok {
+			if ok, newP := getParameter(key, value, eq); ok {
 				list = append(list, newP)
 				continue
 			}
@@ -79,7 +79,7 @@ func getParameters(colNames []string, u url.URL) parameters {
 		if key != sort {
 			continue
 		}
-		if ok, newP := getP(key, value, eq); ok {
+		if ok, newP := getParameter(key, value, eq); ok {
 			list = append(list, newP)
 			continue
 		}

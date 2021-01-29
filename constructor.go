@@ -86,10 +86,12 @@ func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, erro
 	}
 
 	// Now let's get all the data that our paginator requires.
+	// Order matters: getCols func should be called before
+	// getParameters func.
+	p.getID()
 	p.getCols()
 	p.getFieldNames()
 	p.getFilters()
-	p.getID()
 	p.parameters = getParameters(p.cols, u)
 
 	return p, nil

@@ -122,7 +122,7 @@ type paginator struct {
 	// column by specifying the "nofilter" tag in the table struct fields.
 	filters []string
 
-	// rows holds the paginated values scanned by the Scan method in
+	// rows holds the paginated values scanned by the Scan method in the
 	// go sql package. See also addRow and GetRowPtrArgs for a
 	// better understanding.
 	rows []interface{}
@@ -335,7 +335,7 @@ func (p *paginator) getFilters() {
 	for i := 0; i < p.rv.NumField(); i++ {
 		field := p.rv.Type().Field(i)
 		tags := strings.Split(field.Tag.Get("paginate"), tagsep)
-		if !hasnofilter(tags) {
+		if hasnofilter(tags) {
 			continue
 		}
 		sneakName := parseCamelCaseToSnakeLowerCase(field.Name)
