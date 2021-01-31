@@ -8,7 +8,7 @@ import (
 	"unicode"
 )
 
-func getParameters(colNames []string, u url.URL) parameters {
+func getParameters(colNames, filters []string, u url.URL) parameters {
 	list := make(parameters, 0)
 	decodedURL, _ := url.PathUnescape(u.String())
 
@@ -39,6 +39,11 @@ func getParameters(colNames []string, u url.URL) parameters {
 			}
 			key, value := p[:len(n)], p[len(n):]
 			if key != n {
+				continue
+			}
+			// If parameter is in filters we do not include it
+			// in parameters.
+			if isStringIn(key, filters) {
 				continue
 			}
 			// order matters
@@ -223,4 +228,14 @@ func parseCamelCaseToSnakeLowerCase(camelCase string) string {
 	}
 
 	return strings.ToLower(strings.Join(orderedSlice, "_"))
+}
+
+// isStringIn checks whether the given string ``s`` is in the given slice ``in``
+func isStringIn(s string, in []string) bool {
+	for _, elem := range in {
+		if s == elem {
+			return true
+		}
+	}
+	return false
 }

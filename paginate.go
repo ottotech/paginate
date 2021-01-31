@@ -11,22 +11,22 @@ import (
 )
 
 // ErrPaginatorIsClosed is an error thrown by Scan when trying to Scan
-// on a Paginator that is closed. Meaning a paginator whose values were
+// on a Paginator that is closed. That is, a paginator whose values were
 // already scanned.
 var ErrPaginatorIsClosed = errors.New("paginate: Paginator is closed")
 
 // Paginator wraps pagination behaviors.
 //
-// Paginator should be used using the following steps:
+// Paginator should be used following the next steps in the same order:
 //
 // 	(1) Initialize a Paginator instance with NewPaginator.
-// 	(2) Call Paginate to get the query and arguments for the sql driver you are using.
-// 	(3) Call GetRowPtrArgs() when scanning the rows inside the sql.Rows.Next loop.
-//  (4) Call NextData to loop over the paginated data and Scan the data.
+// 	(2) Call Paginate to create the query and arguments to be executed with the sql driver.
+// 	(3) Call GetRowPtrArgs when scanning the rows inside the sql.Rows.Next loop.
+//  (4) Call NextData to loop over the paginated data and Scan the data afterwards.
 //  (5) Call Scan inside the NextData loop to copy the paginated data to the given destination.
 //  (6) Call Response to get useful information about the pagination operation.
 //
-// See the examples folder to check how to use Paginator.
+// For more information, see the examples folder to check how to use Paginator.
 type Paginator interface {
 	// Paginate will use the data consumed by NewPaginator and it will return an
 	// sql command with the corresponding arguments, so it can be run against any
@@ -39,6 +39,7 @@ type Paginator interface {
 	// Always run GetRowPtrArgs when scanning the queried rows with the sql package,
 	// for example:
 	//
+	//   rows, _ := db.Query(myQuery)
 	//	 for rows.Next() {
 	//		err = rows.Scan(paginator.GetRowPtrArgs()...)
 	//		if err != nil {
@@ -54,9 +55,9 @@ type Paginator interface {
 	// while looping over the sql.Rows.
 	GetRowPtrArgs() []interface{}
 
-	// NextData will loop over the saved values created by GetRowPtrArgs and scanned
-	// by sql.Rows.Scan for ever, until all the paginated data has been scanned by Scan
-	// an exhausted. Always use NextData with a following call to Scan.
+	// NextData will loop over the saved values created by GetRowPtrArgs for ever,
+	// until all the paginated data has been scanned by Scan and exhausted. Always
+	// use NextData with a following call to Scan.
 	NextData() bool
 
 	// Scan will copy the next paginated data in the given destination. The given destination
@@ -74,12 +75,12 @@ type Paginator interface {
 	// Scan will also convert nullable fields of type string, int32, int64, float64,
 	// bool, time.Time with the following helpers provided by the sql package:
 	//
-	// 		- sql.NullString
-	// 		- sql.NullInt32
-	// 		- sql.NullInt64
-	// 		- sql.NullFloat64
-	// 		- sql.NullBool
-	// 		- sql.NullTime
+	// 	  - sql.NullString
+	// 	  - sql.NullInt32
+	// 	  - sql.NullInt64
+	// 	  - sql.NullFloat64
+	// 	  - sql.NullBool
+	// 	  - sql.NullTime
 	//
 	// Nullable fields of other types will not be handled by Scan.
 	Scan(dest interface{}) error
@@ -90,7 +91,7 @@ type Paginator interface {
 	Response() PaginationResponse
 }
 
-// paginator is a concrete type that implements the Paginator interface.
+// paginator is the concrete type that implements the Paginator interface.
 type paginator struct {
 	// table is a representation of a database table and its columns.
 	table interface{}
@@ -100,17 +101,19 @@ type paginator struct {
 	// is not provided.
 	name string
 
-	// id represents the table pk in the database. This value should be
-	// defined in the given table through the tag "id" (e.g. `paginator:"id"`")
-	// in one of the `table` struct `fields`. This value is very important
-	// since it will make the sort order deterministic when paginating the
-	// data.
+	// id represents the pk or unique identifier of the table in the database.
+	// This value should be defined in the given table through the tag "id"
+	// (e.g. `paginator:"id"`") in one of the `table` struct `fields`.
+	// This value is very important since it will make the sort order
+	// deterministic when paginating the data.
 	id string
 
 	// cols holds the names of the columns of the database table.
 	// This package will infer the column names from the struct `fields`
 	// of the given table and it will convert any camel case field name
-	// to sneak case lowercase. So MyAwesomeField will be my_awesome_field.
+	// into sneak case lowercase. So MyAwesomeField will be my_awesome_field.
+	// If the tag "col" is given in one of the fields of the given struct
+	// table, the column `name` will be taken from there.
 	cols []string
 
 	// fields holds the raw names of the struct "fields" of the given table.

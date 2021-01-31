@@ -92,7 +92,6 @@ func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, erro
 	p.getCols()
 	p.getFieldNames()
 	p.getFilters()
-	p.parameters = getParameters(p.cols, u)
-
+	p.parameters = getParameters(p.cols, p.filters, u)
 	return p, nil
 }
