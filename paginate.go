@@ -20,7 +20,8 @@ var ErrPaginatorIsClosed = errors.New("paginate: Paginator is closed")
 // Paginator should be used following the next steps in the same order:
 //
 // 	(1) Initialize a Paginator instance with NewPaginator.
-// 	(2) Call Paginate to create the query and arguments to be executed with the sql driver.
+// 	(2) Call Paginate to create the query and arguments that is going to be executed with the
+//	    sql driver.
 // 	(3) Call GetRowPtrArgs when scanning the rows inside the sql.Rows.Next loop.
 //  (4) Call NextData to loop over the paginated data and Scan the data afterwards.
 //  (5) Call Scan inside the NextData loop to copy the paginated data to the given destination.
@@ -28,9 +29,8 @@ var ErrPaginatorIsClosed = errors.New("paginate: Paginator is closed")
 //
 // For more information, see the examples folder to check how to use Paginator.
 type Paginator interface {
-	// Paginate will use the data consumed by NewPaginator and it will return an
-	// sql command with the corresponding arguments, so it can be run against any
-	// sql driver.
+	// Paginate will return an sql command with the corresponding arguments,
+	// so it can be run against any sql driver.
 	Paginate() (sql string, args []interface{}, err error)
 
 	// GetRowPtrArgs will prepare the next pointer arguments that are going to be
@@ -48,15 +48,11 @@ type Paginator interface {
 	//	 }
 	//
 	// Every time GetRowPtrArgs gets called it will save the previous scanned values
-	// internally in the Paginator object so you can scan them later. The last call
-	// to GetRowPtrArgs will not save the scanned values, but it will hold them in
-	// a temporarily location until NextData and Scan are called. This is because
-	// there is no way for GetRowPtrArgs to know how many times it will be called
-	// while looping over the sql.Rows.
+	// internally in the Paginator object so you can scan them later.
 	GetRowPtrArgs() []interface{}
 
-	// NextData will loop over the saved values created by GetRowPtrArgs for ever,
-	// until all the paginated data has been scanned by Scan and exhausted. Always
+	// NextData will loop over the saved values created by GetRowPtrArgs until
+	// all the paginated data has been scanned by Scan and exhausted. Always
 	// use NextData with a following call to Scan.
 	NextData() bool
 
@@ -93,17 +89,19 @@ type Paginator interface {
 
 // paginator is the concrete type that implements the Paginator interface.
 type paginator struct {
-	// table is a representation of a database table and its columns.
+	// table is a representation of a database table and its columns. The
+	// given table should be of type struct and its fields represent the
+	// columns of the table in the database.
 	table interface{}
 
 	// name is the name of the table in the database. This package will
-	// infer the name of the table from the given table struct if the name
-	// is not provided.
+	// infer the name of the table from name of the given table struct
+	// if the name is not provided.
 	name string
 
 	// id represents the pk or unique identifier of the table in the database.
 	// This value should be defined in the given table through the tag "id"
-	// (e.g. `paginator:"id"`") in one of the `table` struct `fields`.
+	// (e.g. `paginator:"id"`) in one of the `table` struct `fields`.
 	// This value is very important since it will make the sort order
 	// deterministic when paginating the data.
 	id string
@@ -138,12 +136,12 @@ type paginator struct {
 	// rv holds the reflection value of the given table.
 	rv reflect.Value
 
-	// pageSize represents the size in number of rows that we want per page.
-	// We will get this value from the request.
+	// pageSize represents the size, in number of rows, that we want to
+	// show per page. We will get this value from the request url values.
 	pageSize int
 
 	// pageNumber represents the "number" of the page that the end user wants
-	// to see. We will get this value from the request.
+	// to see. We will get this value from the request url values.
 	pageNumber int
 
 	// totalSize represents the total number of records in the given table in
@@ -162,14 +160,20 @@ type paginator struct {
 
 	// started is used by GetRowPtrArgs and Scan. When started == true it means
 	// that the rows consumption has started, so no further calls to GetRowPtrArgs
-	// can be done. A call to GetRowPtrArgs will panic if started == true.
+	// can be done. A call to GetRowPtrArgs at this point will return nil.
 	started bool
 
-	// once is used by Scan. It's purpose is to set only once started, pageSize,
+	// once is used by Scan. It's purpose is to set only once: started, pageSize,
 	// and run addRow the first time Scan is used.
 	once sync.Once
 
+	// parameters hold the ``parameters`` that user wants to use to paginate and
+	// filter the table.
 	parameters parameters
+
+	// response holds useful information for clients of the library about the
+	// pagination operation. Clients can use this information to do subsequent
+	// pagination calls.
 	response   PaginationResponse
 }
 
@@ -383,8 +387,8 @@ func (p *paginator) GetRowPtrArgs() []interface{} {
 		p.addRow()
 	}
 	for _, fieldName := range p.fields {
-		T := reflect.Indirect(p.rv).FieldByName(fieldName).Interface()
-		switch T.(type) {
+		I := reflect.Indirect(p.rv).FieldByName(fieldName).Interface()
+		switch I.(type) {
 		case string:
 			var s sql.NullString
 			p.tmp = append(p.tmp, &s)
@@ -421,9 +425,9 @@ func (p *paginator) GetRowPtrArgs() []interface{} {
 
 	// As an special case in tmp we will always
 	// append at the end p.totalSize whose value
-	// is going to be retrieved when the query gets
-	// executed.
+	// is going to be set when the query gets executed.
 	p.tmp = append(p.tmp, &p.totalSize)
+
 	return p.tmp
 }
 
@@ -445,7 +449,7 @@ func (p *paginator) GetRowPtrArgs() []interface{} {
 // 		- sql.NullTime
 //
 // Custom nullable values will not be handled, for example, for
-// values like uint8m, uint16, etc.
+// values like uint8, uint16, etc.
 //
 // It is up to GetRowPtrArgs to call addRow each time a new row is
 // read by sql.Rows.Scan. NextData is also responsible to call addRow
@@ -464,10 +468,10 @@ func (p *paginator) addRow() {
 	// because of the extra field we are adding in tmp: totalSize.
 	// len(tmp)-1  will give us exactly the field elements we want.
 	for i := 0; i < len(p.tmp)-1; i++ {
-		T := reflect.Indirect(reflect.ValueOf(p.tmp[i])).Interface()
+		I := reflect.Indirect(reflect.ValueOf(p.tmp[i])).Interface()
 		tmpRowField := tmpRow.FieldByName(p.fields[i])
 
-		switch T.(type) {
+		switch I.(type) {
 		case sql.NullString:
 			ns := sql.NullString{}
 			nsrv := reflect.ValueOf(&ns).Elem()

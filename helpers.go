@@ -41,9 +41,9 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 			if key != n {
 				continue
 			}
-			// If parameter is in filters we do not include it
-			// in parameters.
-			if isStringIn(key, filters) {
+			// If parameter is not in filters we do not include it
+			// in []parameters.
+			if !isStringIn(key, filters) {
 				continue
 			}
 			// order matters
