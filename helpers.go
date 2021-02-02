@@ -106,6 +106,8 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 		}
 	}
 
+	list = listWithoutEqualDuplicates
+
 	for k, v := range eqDuplicates {
 		inVal := strings.Join(v, ",")
 		p := parameter{
@@ -113,10 +115,8 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 			sign:  _in,
 			value: inVal,
 		}
-		listWithoutEqualDuplicates = append(listWithoutEqualDuplicates, p)
+		list = append(list, p)
 	}
-
-	list = listWithoutEqualDuplicates
 
 	// As an special case if there are repeated parameters with the ``ne`` sign
 	// we will group them together under the ``_notin`` sign.
@@ -150,6 +150,8 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 		}
 	}
 
+	list = listWithoutNotEqualDuplicates
+
 	for k, v := range notEqDuplicates {
 		inVal := strings.Join(v, ",")
 		p := parameter{
@@ -157,10 +159,8 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 			sign:  _notin,
 			value: inVal,
 		}
-		listWithoutNotEqualDuplicates = append(listWithoutNotEqualDuplicates, p)
+		list = append(list, p)
 	}
-
-	list = listWithoutNotEqualDuplicates
 
 	// As an special case we need to also get our custom sort parameter.
 	sort := "sort"

@@ -37,7 +37,7 @@ func main() {
 	}
 	fmt.Println("You connected to your database.")
 
-	u, err := url.Parse("http://localhost?system=olms&performer<>aaaa&performer<>bbbb")
+	u, err := url.Parse("http://localhost?system=olms&performer=aaaa")
 	if err != nil {
 		log.Fatal(err)
 	}
