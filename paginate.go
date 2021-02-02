@@ -19,13 +19,12 @@ var ErrPaginatorIsClosed = errors.New("paginate: Paginator is closed")
 //
 // Paginator should be used following the next steps in the same order:
 //
-// 	(1) Initialize a Paginator instance with NewPaginator.
-// 	(2) Call Paginate to create the query and arguments that is going to be executed with the
-//	    sql driver.
-// 	(3) Call GetRowPtrArgs when scanning the rows inside the sql.Rows.Next loop.
-//  (4) Call NextData to loop over the paginated data and Scan the data afterwards.
-//  (5) Call Scan inside the NextData loop to copy the paginated data to the given destination.
-//  (6) Call Response to get useful information about the pagination operation.
+// 		1. Initialize a Paginator instance with NewPaginator.
+// 		2. Call Paginate to create the query and arguments to be executed with the sql driver.
+// 		3. Call GetRowPtrArgs when scanning the rows inside the sql.Rows.Next loop.
+// 		4. Call NextData to loop over the paginated data and Scan the data afterwards.
+// 		5. Call Scan inside the NextData loop to copy the paginated data to the given destination.
+// 		6. Call Response to get useful information about the pagination operation.
 //
 // For more information, see the examples folder to check how to use Paginator.
 type Paginator interface {

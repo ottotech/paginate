@@ -53,12 +53,10 @@ func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, erro
 	p := &paginator{table: table, rv: reflect.ValueOf(table)}
 
 	// Let's try to set the options if any.
-	if opts != nil {
-		for _, opt := range opts {
-			err := opt(p)
-			if err != nil {
-				return nil, err
-			}
+	for _, opt := range opts {
+		err := opt(p)
+		if err != nil {
+			return nil, err
 		}
 	}
 
