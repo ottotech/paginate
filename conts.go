@@ -18,7 +18,10 @@ const (
 	ne  = "<>"
 )
 
-// Constants that represent
+// Constants that represent the IN and NOT IN sql clauses.
+// We will use these whenever we have repeated parameters in
+// the url with the eq and ne sign. For more info check
+// getParameters and createWhereClause.
 const (
 	_in    = "IN"
 	_notin = "NOT IN"
