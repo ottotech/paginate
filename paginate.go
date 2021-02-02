@@ -174,7 +174,7 @@ type paginator struct {
 	// response holds useful information for clients of the library about the
 	// pagination operation. Clients can use this information to do subsequent
 	// pagination calls.
-	response   PaginationResponse
+	response PaginationResponse
 }
 
 func (p *paginator) Paginate() (sql string, values []interface{}, err error) {

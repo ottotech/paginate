@@ -41,7 +41,7 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 			if key != n {
 				continue
 			}
-			// If parameter is not in filters we do not include it
+			// If key is not in filters we do not include it
 			// in []parameters.
 			if !isStringIn(key, filters) {
 				continue
@@ -73,6 +73,94 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 			}
 		}
 	}
+
+	// As an special case if there are repeated parameters with the ``eq`` sign
+	// we will group them together under the ``_in`` sign.
+	listWithoutEqualDuplicates := make(parameters, 0)
+	eqDuplicates := make(map[string][]string, 0)
+	for i, x := range list {
+		if x.sign != eq {
+			listWithoutEqualDuplicates = append(listWithoutEqualDuplicates, x)
+			continue
+		}
+
+		isDuplicated := false
+
+		for j, y := range list {
+			if i == j {
+				continue
+			}
+			if x.sign == y.sign && x.name == y.name {
+				if _, exists := eqDuplicates[x.name]; exists {
+					if !isStringIn(x.value, eqDuplicates[x.name]) {
+						eqDuplicates[x.name] = append(eqDuplicates[x.name], x.value)
+					}
+				} else {
+					eqDuplicates[x.name] = append(eqDuplicates[x.name], x.value)
+				}
+				isDuplicated = true
+			}
+		}
+		if !isDuplicated {
+			listWithoutEqualDuplicates = append(listWithoutEqualDuplicates, x)
+		}
+	}
+
+	for k, v := range eqDuplicates {
+		inVal := strings.Join(v, ",")
+		p := parameter{
+			name:  k,
+			sign:  _in,
+			value: inVal,
+		}
+		listWithoutEqualDuplicates = append(listWithoutEqualDuplicates, p)
+	}
+
+	list = listWithoutEqualDuplicates
+
+	// As an special case if there are repeated parameters with the ``ne`` sign
+	// we will group them together under the ``_notin`` sign.
+	listWithoutNotEqualDuplicates := make(parameters, 0)
+	notEqDuplicates := make(map[string][]string, 0)
+	for i, x := range list {
+		if x.sign != ne {
+			listWithoutNotEqualDuplicates = append(listWithoutNotEqualDuplicates, x)
+			continue
+		}
+
+		isDuplicated := false
+
+		for j, y := range list {
+			if i == j {
+				continue
+			}
+			if x.sign == y.sign && x.name == y.name {
+				if _, exists := notEqDuplicates[x.name]; exists {
+					if !isStringIn(x.value, notEqDuplicates[x.name]) {
+						notEqDuplicates[x.name] = append(notEqDuplicates[x.name], x.value)
+					}
+				} else {
+					notEqDuplicates[x.name] = append(notEqDuplicates[x.name], x.value)
+				}
+				isDuplicated = true
+			}
+		}
+		if !isDuplicated {
+			listWithoutNotEqualDuplicates = append(listWithoutNotEqualDuplicates, x)
+		}
+	}
+
+	for k, v := range notEqDuplicates {
+		inVal := strings.Join(v, ",")
+		p := parameter{
+			name:  k,
+			sign:  _notin,
+			value: inVal,
+		}
+		listWithoutNotEqualDuplicates = append(listWithoutNotEqualDuplicates, p)
+	}
+
+	list = listWithoutNotEqualDuplicates
 
 	// As an special case we need to also get our custom sort parameter.
 	sort := "sort"
@@ -135,8 +223,26 @@ func createWhereClause(colNames []string, params parameters, c chan whereClause)
 	for _, name := range colNames {
 		for _, p := range params {
 			if p.name == name {
-				values = append(values, p.value)
-				clauses = append(clauses, p.name+" "+p.sign+" $%v")
+				switch p.sign {
+				case _in, _notin:
+					vals := strings.Split(p.value, ",")
+					for _, v := range vals {
+						values = append(values, v)
+					}
+					placeholder := "$%v"
+					str := ""
+					for i := 0; i < len(vals); i++ {
+						if i == len(vals)-1 {
+							str += placeholder
+						} else {
+							str += placeholder + ","
+						}
+					}
+					clauses = append(clauses, p.name+" "+p.sign+fmt.Sprintf("(%s)", str))
+				default:
+					values = append(values, p.value)
+					clauses = append(clauses, p.name+" "+p.sign+" $%v")
+				}
 			}
 		}
 	}

@@ -2,7 +2,9 @@ package paginate
 
 type parameters []parameter
 
-// getParameter will try to get a parameter by its name from parameters.
+// getParameter will try to get a parameter with the given name from
+// parameters. If there is no parameter with that name getParameter
+// will return false, otherwise true.
 func (params *parameters) getParameter(name string) (parameter, bool) {
 	for _, p := range *params {
 		if p.name == name {

@@ -13,10 +13,12 @@ const (
 // Constants that specify the available filter operators.
 // These operators can be used in the request url to filter records.
 const (
-	eq  = "="
-	gt  = ">"
-	lt  = "<"
-	gte = ">="
-	lte = "<="
-	ne  = "<>"
+	eq     = "="
+	gt     = ">"
+	lt     = "<"
+	gte    = ">="
+	lte    = "<="
+	ne     = "<>"
+	_in    = "IN"
+	_notin = "NOT IN"
 )
