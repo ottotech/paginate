@@ -51,8 +51,8 @@ type Paginator interface {
 	GetRowPtrArgs() []interface{}
 
 	// NextData will loop over the saved values created by GetRowPtrArgs until
-	// all the paginated data has been scanned by Scan and exhausted. Always
-	// use NextData with a following call to Scan.
+	// all the paginated data has been scanned by Scan. Always use NextData
+	// followed by a call to Scan.
 	NextData() bool
 
 	// Scan will copy the next paginated data in the given destination. The given destination
