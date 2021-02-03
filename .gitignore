@@ -2,3 +2,4 @@
 *.idea
 *.DB_Store
 .env
+_examples/*

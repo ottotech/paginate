@@ -336,7 +336,7 @@ func parseCamelCaseToSnakeLowerCase(camelCase string) string {
 	return strings.ToLower(strings.Join(orderedSlice, "_"))
 }
 
-// isStringIn checks whether the given string ``s`` is in the given slice ``in``
+// isStringIn checks whether the given string ``s`` is in the given slice ``in``.
 func isStringIn(s string, in []string) bool {
 	for _, elem := range in {
 		if s == elem {

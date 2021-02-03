@@ -1,6 +1,6 @@
 /*
 Package paginate provides a basic Paginator interface to do pagination of database records
-for a single database table. Its primary job is to generate a raw sql command with the
+of a single database table. Its primary job is to generate a raw sql command with the
 corresponding arguments that can be executed with an sql database driver. Paginator also provides
 some utility functions like GetRowPtrArgs, NextData, and Scan, to make easy to retrieve
 and read the paginated data.
