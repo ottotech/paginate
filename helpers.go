@@ -37,15 +37,21 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 			if len(p) <= len(n) {
 				continue
 			}
+
 			key, value := p[:len(n)], p[len(n):]
+
+			// If the key (the parameter from the request) is not equal to
+			// the column name we don't include it in []parameters
 			if key != n {
 				continue
 			}
+
 			// If key is not in filters we do not include it
 			// in []parameters.
 			if !isStringIn(key, filters) {
 				continue
 			}
+
 			// order matters
 			if ok, newP := getParameter(key, value, gte); ok {
 				list = append(list, newP)
@@ -321,11 +327,24 @@ func createOrderByClause(params parameters, colNames []string, id string, c chan
 // string "myCamelCaseVar" the output would be "my_camel_case_var".
 func parseCamelCaseToSnakeLowerCase(camelCase string) string {
 	var s []string
+	var lastIndexChecked int
+	var isSneakCase = true
+
 	for i := len(camelCase) - 1; i >= 0; i-- {
 		if unicode.IsUpper(rune(camelCase[i])) {
 			s = append(s, camelCase[i:])
 			camelCase = camelCase[:i]
+			lastIndexChecked = i
+			isSneakCase = false
 		}
+
+		if i == 0 && lastIndexChecked > 0 {
+			s = append(s, camelCase[:lastIndexChecked])
+		}
+	}
+
+	if isSneakCase {
+		return strings.ToLower(camelCase)
 	}
 
 	var orderedSlice []string
