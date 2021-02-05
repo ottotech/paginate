@@ -57,7 +57,7 @@ func getParameters(colNames, filters []string, mappers mappers, u url.URL) param
 				}
 				// We do this to map the column name with the parameter
 				// from the request. A ``key`` should be always a column name.
-				// But if the user specified its customParameter know that the
+				// But if the user specified its customParameter we know that the
 				// above key is not a column name, so that's why we override
 				// the value here.
 				key = colName
