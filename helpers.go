@@ -40,7 +40,7 @@ func getParameters(colNames, filters []string, mappers mappers, u url.URL) param
 			continue
 		}
 
-		isMapped, customParameterName := mappers.isMapped(colName)
+		isMapped, customParameterName := mappers.isColumnMapped(colName)
 
 		for _, requestParameterAndValue := range params {
 			// ``key`` and ``value`` will be the variables used

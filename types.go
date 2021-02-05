@@ -59,9 +59,9 @@ type mapper struct {
 	col, param string
 }
 
-// isMapped checks whether the given column name is mapped with a
+// isColumnMapped checks whether the given column name is mapped with a
 // request parameter or not.
-func (m mappers) isMapped(columnName string) (isMapped bool, customParameterName string) {
+func (m mappers) isColumnMapped(columnName string) (isMapped bool, customParameterName string) {
 	for _, x := range m {
 		if x.col == columnName {
 			return true, x.param
