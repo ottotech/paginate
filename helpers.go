@@ -40,14 +40,14 @@ func getParameters(colNames, filters []string, mappers mappers, u url.URL) param
 			continue
 		}
 
-		isMapped, customParameterName := mappers.isColumnMapped(colName)
+		columnIsMapped, customParameterName := mappers.isColumnMapped(colName)
 
 		for _, requestParameterAndValue := range params {
 			// ``key`` and ``value`` will be the variables used
 			// to build sql where clauses.
 			var key, value string
 
-			if isMapped {
+			if columnIsMapped {
 				if len(requestParameterAndValue) <= len(customParameterName) {
 					continue
 				}
