@@ -166,8 +166,8 @@ type paginator struct {
 	// and run addRow the first time Scan is used.
 	once sync.Once
 
-	// parameters hold the sql where clause parameters that we will use to paginate and
-	// filter the table.
+	// parameters holds the parameters required to create the sql where clause
+	// that we will use to paginate and filter the database table.
 	parameters parameters
 
 	// mappers holds a collection of mapper objects.
