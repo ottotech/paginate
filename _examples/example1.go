@@ -13,7 +13,7 @@ import (
 
 type HistoryEvent struct {
 	Id               int       `json:"id" paginate:"id;col=id"`
-	Performer        string    `json:"performer" paginate:"col=performer"`
+	Performer        string    `json:"performer" paginate:"col=performer;param=performera"`
 	Player           string    `json:"player" paginate:"col=player"`
 	System           string    `json:"system" paginate:"col=system"`
 	Event            string    `json:"event" paginate:"col=event"`
@@ -37,7 +37,7 @@ func main() {
 	}
 	fmt.Println("You connected to your database.")
 
-	u, err := url.Parse("http://localhost?system=olms&performer=aaaa&performer=bbbb")
+	u, err := url.Parse("http://localhost?system=olms&performera=aaaa")
 	if err != nil {
 		log.Fatal(err)
 	}

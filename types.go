@@ -41,9 +41,46 @@ type PaginationResponse struct {
 	TotalSize       int  `json:"total_size"`
 }
 
-// whereClause holds information about a where clauses.
+// whereClause holds information about an sql where clause.
 type whereClause struct {
 	clause string
 	args   []interface{}
 	exists bool
+}
+
+// mappers holds a collection of mapper objects.
+type mappers []mapper
+
+// mapper maps a database column name with a request parameter.
+// We use this helper type because there might be cases where the user
+// of the package wants to have a different name for the request parameter
+// instead of using a real column name from the given table.
+type mapper struct {
+	col, param string
+}
+
+// isMapped checks whether the given column name is mapped with a
+// request parameter or not.
+func (m mappers) isMapped(columnName string) (isMapped bool, customParameterName string) {
+	for _, x := range m {
+		if x.col == columnName {
+			return true, x.param
+		}
+	}
+	return false, ""
+}
+
+// Add adds a mapper in mappers. If an equal
+// mapper with the same ``col`` and ``param`` values
+// exists, Add will not add the given values to mapper.
+func (m *mappers) Add(col, param string) {
+	for _, x := range *m {
+		if x.col == col && x.param == param {
+			return
+		}
+	}
+	*m = append(*m, mapper{
+		col:   col,
+		param: param,
+	})
 }

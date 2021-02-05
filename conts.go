@@ -26,3 +26,15 @@ const (
 	_in    = "IN"
 	_notin = "NOT IN"
 )
+
+// Constants that represent the struct field tags available
+// for the package.
+const (
+	// We use col to get a column name of a database table.
+	col = "col"
+	// We use param to map a request parameter with a column name
+	// from a database table.
+	param = "param"
+	// We use nofilter determine which columns do not need to be filtered.
+	nofilter = "nofilter"
+)

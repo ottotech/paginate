@@ -8,11 +8,11 @@ import (
 	"unicode"
 )
 
-func getParameters(colNames, filters []string, u url.URL) parameters {
+func buildWhereClauseConditions(colNames, filters []string, mappers mappers, u url.URL) parameters {
 	list := make(parameters, 0)
 	decodedURL, _ := url.PathUnescape(u.String())
 
-	getParameter := func(key, val, char string) (bool, parameter) {
+	buildCondition := func(key, val, char string) (bool, parameter) {
 		p := parameter{}
 		if strings.Contains(val, char) {
 			if val[:len(char)] == char && len(val) > len(char) {
@@ -32,48 +32,67 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 
 	params := strings.Split(decodedURL[i+1:], "&")
 
-	for _, n := range colNames {
-		for _, p := range params {
-			if len(p) <= len(n) {
-				continue
-			}
+	for _, colName := range colNames {
 
-			key, value := p[:len(n)], p[len(n):]
+		// If colName is not in filters we will not try to build
+		// a where clause condition
+		if !isStringIn(colName, filters) {
+			continue
+		}
 
-			// If the key (the parameter from the request) is not equal to
-			// the column name we don't include it in []parameters
-			if key != n {
-				continue
-			}
+		isMapped, customParameterName := mappers.isMapped(colName)
 
-			// If key is not in filters we do not include it
-			// in []parameters.
-			if !isStringIn(key, filters) {
-				continue
+		for _, requestParameterAndValue := range params {
+			// ``key`` and ``value`` will be the variables used
+			// to build sql where clauses.
+			var key, value string
+
+			if isMapped {
+				if len(requestParameterAndValue) <= len(customParameterName) {
+					continue
+				}
+				key, value = requestParameterAndValue[:len(customParameterName)], requestParameterAndValue[len(customParameterName):]
+				if key != customParameterName {
+					continue
+				}
+				// We do this to map the column name with the parameter
+				// from the request. A ``key`` should be always a column name.
+				// But if the user specified its customParameter know that the
+				// above key is not a column name, so that's why we override
+				// the value here.
+				key = colName
+			} else {
+				if len(requestParameterAndValue) <= len(colName) {
+					continue
+				}
+				key, value = requestParameterAndValue[:len(colName)], requestParameterAndValue[len(colName):]
+				if key != colName {
+					continue
+				}
 			}
 
 			// order matters
-			if ok, newP := getParameter(key, value, gte); ok {
+			if ok, newP := buildCondition(key, value, gte); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getParameter(key, value, lte); ok {
+			if ok, newP := buildCondition(key, value, lte); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getParameter(key, value, ne); ok {
+			if ok, newP := buildCondition(key, value, ne); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getParameter(key, value, gt); ok {
+			if ok, newP := buildCondition(key, value, gt); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getParameter(key, value, lt); ok {
+			if ok, newP := buildCondition(key, value, lt); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := getParameter(key, value, eq); ok {
+			if ok, newP := buildCondition(key, value, eq); ok {
 				list = append(list, newP)
 				continue
 			}
@@ -81,7 +100,8 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 	}
 
 	// As an special case if there are repeated parameters with the ``eq`` sign
-	// we will group them together under the ``_in`` sign.
+	// we will group them together under the ``_in`` sign, in order to allow
+	// the creation of an sql IN clause.
 	listWithoutEqualDuplicates := make(parameters, 0)
 	eqDuplicates := make(map[string][]string, 0)
 	for i, x := range list {
@@ -125,7 +145,8 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 	}
 
 	// As an special case if there are repeated parameters with the ``ne`` sign
-	// we will group them together under the ``_notin`` sign.
+	// we will group them together under the ``_notin`` sign, in order to allow
+	// the creation of an sql NOT IN clause.
 	listWithoutNotEqualDuplicates := make(parameters, 0)
 	notEqDuplicates := make(map[string][]string, 0)
 	for i, x := range list {
@@ -178,7 +199,7 @@ func getParameters(colNames, filters []string, u url.URL) parameters {
 		if key != sort {
 			continue
 		}
-		if ok, newP := getParameter(key, value, eq); ok {
+		if ok, newP := buildCondition(key, value, eq); ok {
 			list = append(list, newP)
 			continue
 		}

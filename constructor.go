@@ -87,9 +87,9 @@ func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, erro
 	// Order matters: getCols func should be called before
 	// getParameters func.
 	p.getID()
-	p.getCols()
+	p.getColsAndMapParameters()
 	p.getFieldNames()
 	p.getFilters()
-	p.parameters = getParameters(p.cols, p.filters, u)
+	p.parameters = buildWhereClauseConditions(p.cols, p.filters, p.mappers, u)
 	return p, nil
 }

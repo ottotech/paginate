@@ -166,9 +166,12 @@ type paginator struct {
 	// and run addRow the first time Scan is used.
 	once sync.Once
 
-	// parameters hold the ``parameters`` that user wants to use to paginate and
+	// parameters hold the sql where clause parameters that we will use to paginate and
 	// filter the table.
 	parameters parameters
+
+	// mappers holds a collection of mapper objects.
+	mappers mappers
 
 	// response holds useful information for clients of the library about the
 	// pagination operation. Clients can use this information to do subsequent
@@ -284,13 +287,18 @@ func (p *paginator) validateTable() error {
 	return nil
 }
 
-// getCols infers the column names of the database table from the given ``table``
-// struct fields. If the fields have the tag "col" the column name will me taken from
-// there. Malformed "col" tags will be ignored silently.
-func (p *paginator) getCols() {
-	const col = "col"
+// getColsAndMapParameters does two things:
+//
+// (1) It infers the column names of the database table from the given ``table``
+//     struct fields. If the fields have the tag "col", the column name will be taken
+//     from there.
+// (2) It will map the column names with request ``parameter`` names if the struct
+//     fields have the tag "param" on it.
+//
+// Malformed "col" and "param" tags will be ignored silently.
+func (p *paginator) getColsAndMapParameters() {
 
-	getColNameFromTags := func(tags []string) (hasTag bool, colName string) {
+	getColNameFromTags := func(tags []string) (hasColTag bool, colName string) {
 		for _, tag := range tags {
 			kv := strings.Split(tag, "=")
 			if len(kv) != 2 {
@@ -302,18 +310,39 @@ func (p *paginator) getCols() {
 			}
 			return true, v
 		}
-		return hasTag, colName
+		return hasColTag, colName
+	}
+
+	getParamFromTags := func(tags []string) (hasParamTag bool, paramName string) {
+		for _, tag := range tags {
+			kv := strings.Split(tag, "=")
+			if len(kv) != 2 {
+				continue
+			}
+			k, v := strings.TrimSpace(kv[0]), strings.TrimSpace(kv[1])
+			if k != param {
+				continue
+			}
+			return true, v
+		}
+		return hasParamTag, paramName
 	}
 
 	for i := 0; i < p.rv.NumField(); i++ {
 		field := p.rv.Type().Field(i)
 		tags := strings.Split(field.Tag.Get("paginate"), tagsep)
-		if hastag, name := getColNameFromTags(tags); hastag {
+		if hasColTag, name := getColNameFromTags(tags); hasColTag {
 			p.cols = append(p.cols, name)
+			if hasParamTag, paramName := getParamFromTags(tags); hasParamTag {
+				p.mappers.Add(name, paramName)
+			}
 			continue
 		}
 		fieldName := field.Name
 		sneakName := parseCamelCaseToSnakeLowerCase(fieldName)
+		if hasParamTag, paramName := getParamFromTags(tags); hasParamTag {
+			p.mappers.Add(sneakName, paramName)
+		}
 		p.cols = append(p.cols, sneakName)
 	}
 }
@@ -327,7 +356,6 @@ func (p *paginator) getFieldNames() {
 }
 
 func (p *paginator) getFilters() {
-	const nofilter = "nofilter"
 
 	hasnofilter := func(tags []string) bool {
 		for _, tag := range tags {
