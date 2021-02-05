@@ -8,11 +8,11 @@ import (
 	"unicode"
 )
 
-func buildWhereClauseConditions(colNames, filters []string, mappers mappers, u url.URL) parameters {
+func getParameters(colNames, filters []string, mappers mappers, u url.URL) parameters {
 	list := make(parameters, 0)
 	decodedURL, _ := url.PathUnescape(u.String())
 
-	buildCondition := func(key, val, char string) (bool, parameter) {
+	getParameter := func(key, val, char string) (bool, parameter) {
 		p := parameter{}
 		if strings.Contains(val, char) {
 			if val[:len(char)] == char && len(val) > len(char) {
@@ -72,27 +72,27 @@ func buildWhereClauseConditions(colNames, filters []string, mappers mappers, u u
 			}
 
 			// order matters
-			if ok, newP := buildCondition(key, value, gte); ok {
+			if ok, newP := getParameter(key, value, gte); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := buildCondition(key, value, lte); ok {
+			if ok, newP := getParameter(key, value, lte); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := buildCondition(key, value, ne); ok {
+			if ok, newP := getParameter(key, value, ne); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := buildCondition(key, value, gt); ok {
+			if ok, newP := getParameter(key, value, gt); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := buildCondition(key, value, lt); ok {
+			if ok, newP := getParameter(key, value, lt); ok {
 				list = append(list, newP)
 				continue
 			}
-			if ok, newP := buildCondition(key, value, eq); ok {
+			if ok, newP := getParameter(key, value, eq); ok {
 				list = append(list, newP)
 				continue
 			}
@@ -199,7 +199,7 @@ func buildWhereClauseConditions(colNames, filters []string, mappers mappers, u u
 		if key != sort {
 			continue
 		}
-		if ok, newP := buildCondition(key, value, eq); ok {
+		if ok, newP := getParameter(key, value, eq); ok {
 			list = append(list, newP)
 			continue
 		}

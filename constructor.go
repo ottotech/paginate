@@ -90,6 +90,6 @@ func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, erro
 	p.getColsAndMapParameters()
 	p.getFieldNames()
 	p.getFilters()
-	p.parameters = buildWhereClauseConditions(p.cols, p.filters, p.mappers, u)
+	p.parameters = getParameters(p.cols, p.filters, p.mappers, u)
 	return p, nil
 }
