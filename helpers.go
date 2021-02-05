@@ -343,7 +343,7 @@ func createOrderByClause(params parameters, colNames []string, id string, c chan
 	c <- " ORDER BY " + clauseSTR
 }
 
-// parseCamelCaseToSnakeLowerCase parses a camelcase string to a snake case.
+// parseCamelCaseToSnakeLowerCase parses a camelcase string to a snake case
 // lower cased. So for example, if we use as input for this function the following
 // string "myCamelCaseVar" the output would be "my_camel_case_var".
 func parseCamelCaseToSnakeLowerCase(camelCase string) string {
