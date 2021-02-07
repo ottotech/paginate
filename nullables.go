@@ -66,7 +66,7 @@ func (ni *NullInt) UnmarshalJSON(data []byte) error {
 
 type NullBool struct {
 	Bool  bool
-	Valid bool // Valid is true if Int is not NULL
+	Valid bool // Valid is true if Bool is not NULL
 }
 
 func (nb *NullBool) Scan(value interface{}) error {
@@ -107,5 +107,47 @@ func (nb *NullBool) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	nb.Bool, nb.Valid = boolVal, true
+	return nil
+}
+
+type NullString struct {
+	String string
+	Valid  bool // Valid is true if String is not NULL
+}
+
+func (ns *NullString) Scan(value interface{}) error {
+	if value == nil {
+		ns.String, ns.Valid = "", false
+		return nil
+	}
+	stringVal, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("column is not string")
+	}
+	ns.Valid = true
+	ns.String = stringVal
+	return nil
+}
+
+func (ns NullString) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return ns.String, nil
+}
+
+func (ns NullString) MarshalJSON() ([]byte, error) {
+	if !ns.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(ns.String)
+}
+
+func (ns *NullString) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		ns.String, ns.Valid = "", false
+		return nil
+	}
+	ns.String, ns.Valid = string(data), true
 	return nil
 }
