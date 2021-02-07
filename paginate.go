@@ -68,7 +68,8 @@ type Paginator interface {
 	//    *float32, *float64
 	//
 	// Scan will also convert nullable fields of type string, int32, int64, float64,
-	// bool, time.Time with the following helpers provided by the sql package:
+	// bool, time.Time to their default zero values with the following helpers provided
+	// by the sql package:
 	//
 	// 	  - sql.NullString
 	// 	  - sql.NullInt32
@@ -271,6 +272,8 @@ func (p *paginator) validateTable() error {
 			continue
 		case time.Time:
 			continue
+		case NullInt, NullBool:
+			continue
 		default:
 			return fmt.Errorf("paginate: invalid type for field %q", fieldName)
 		}
@@ -416,6 +419,12 @@ func (p *paginator) GetRowPtrArgs() []interface{} {
 	for _, fieldName := range p.fields {
 		I := reflect.Indirect(p.rv).FieldByName(fieldName).Interface()
 		switch I.(type) {
+		case NullInt:
+			var ni NullInt
+			p.tmp = append(p.tmp, &ni)
+		case NullBool:
+			var nb NullBool
+			p.tmp = append(p.tmp, &nb)
 		case string:
 			var s sql.NullString
 			p.tmp = append(p.tmp, &s)

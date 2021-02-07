@@ -12,15 +12,16 @@ import (
 )
 
 type HistoryEvent struct {
-	Id               int       `json:"id" paginate:"id;col=id"`
-	Performer        string    `json:"performer" paginate:"col=performer;param=performera"`
-	Player           string    `json:"player" paginate:"col=player"`
-	System           string    `json:"system" paginate:"col=system"`
-	Event            string    `json:"event" paginate:"col=event"`
-	DateCreated      time.Time `json:"date_created" paginate:"col=date_created"`
-	ObjectIdentifier string    `json:"object_identifier" paginate:"col=object_identifier"`
-	Notes            string    `json:"notes" paginate:"col=notes"`
-	Dummy            int       `json:"dummy" paginate:"col=dummy"`
+	Id               int               `json:"id" paginate:"id;col=id"`
+	Performer        string            `json:"performer" paginate:"col=performer;param=performera"`
+	Player           string            `json:"player" paginate:"col=player"`
+	System           string            `json:"system" paginate:"col=system"`
+	Event            string            `json:"event" paginate:"col=event"`
+	DateCreated      time.Time         `json:"date_created" paginate:"col=date_created"`
+	ObjectIdentifier string            `json:"object_identifier" paginate:"col=object_identifier"`
+	Notes            string            `json:"notes" paginate:"col=notes"`
+	Dummy            paginate.NullInt  `json:"dummy,omitempty" paginate:"col=dummy"`
+	DummyBool        paginate.NullBool `json:"dummy_bool,omitempty" paginate:"col=bool_null"`
 }
 
 func main() {
@@ -86,10 +87,19 @@ func main() {
 	}
 
 	fmt.Printf("This is the result: %+v\n", result)
-	_, err = json.Marshal(result)
+	sb, err := json.Marshal(result)
 	if err != nil {
 		log.Fatal(err)
 	}
-	//fmt.Println(string(sb))
+	fmt.Println(string(sb))
 	fmt.Printf("%+v\n", paginator.Response())
+
+	result2 := make([]HistoryEvent, 0)
+
+	err = json.Unmarshal(sb, &result2)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	fmt.Printf("%+v\n", result2)
 }
