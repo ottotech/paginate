@@ -202,3 +202,56 @@ func (nt *NullTime) UnmarshalJSON(data []byte) error {
 	nt.Time, nt.Valid = t, true
 	return nil
 }
+
+type NullFloat64 struct {
+	Float64 float64
+	Valid   bool // Valid is true if Float64 is not NULL
+}
+
+func (n *NullFloat64) Scan(value interface{}) error {
+	if value == nil {
+		n.Float64, n.Valid = 0, false
+		return nil
+	}
+	var float64Val float64
+	switch t := value.(type) {
+	case float32:
+		float64Val = float64(t)
+	case float64:
+		float64Val = t
+	default:
+		return fmt.Errorf("column is not float64")
+	}
+	n.Valid = true
+	n.Float64 = float64Val
+	return nil
+}
+
+func (n NullFloat64) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.Float64, nil
+}
+
+func (n NullFloat64) MarshalJSON() ([]byte, error) {
+	if !n.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(n.Float64)
+}
+
+func (n *NullFloat64) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		n.Float64, n.Valid = 0, false
+		return nil
+	}
+
+	float64Val, err := strconv.ParseFloat(string(data), 64)
+	if err != nil {
+		return err
+	}
+
+	n.Float64, n.Valid = float64Val, true
+	return nil
+}
