@@ -12,16 +12,20 @@ import (
 )
 
 type HistoryEvent struct {
-	Id               int               `json:"id" paginate:"id;col=id"`
-	Performer        string            `json:"performer" paginate:"col=performer;param=performera"`
-	Player           string            `json:"player" paginate:"col=player"`
-	System           string            `json:"system" paginate:"col=system"`
-	Event            string            `json:"event" paginate:"col=event"`
-	DateCreated      time.Time         `json:"date_created" paginate:"col=date_created"`
-	ObjectIdentifier string            `json:"object_identifier" paginate:"col=object_identifier"`
-	Notes            string            `json:"notes" paginate:"col=notes"`
-	Dummy            paginate.NullInt  `json:"dummy,omitempty" paginate:"col=dummy"`
-	DummyBool        paginate.NullBool `json:"dummy_bool,omitempty" paginate:"col=bool_null"`
+	Id               int                 `json:"id" paginate:"id;col=id"`
+	Performer        string              `json:"performer" paginate:"col=performer"`
+	Player           string              `json:"player" paginate:"col=player"`
+	System           string              `json:"system" paginate:"col=system"`
+	Event            string              `json:"event" paginate:"col=event"`
+	DateCreated      time.Time           `json:"date_created" paginate:"col=date_created"`
+	ObjectIdentifier string              `json:"object_identifier" paginate:"col=object_identifier"`
+	Notes            string              `json:"notes" paginate:"col=notes"`
+	Dummy            paginate.NullInt    `json:"dummy" paginate:"col=dummy"`
+	DummyBool        paginate.NullBool   `json:"dummy_bool" paginate:"col=bool_null"`
+	DummyVarchar     paginate.NullString `json:"varchar_null" paginate:"col=varchar_null"`
+	DummyText        paginate.NullString `json:"text_null" paginate:"col=text_null"`
+	DummyTimeStamp   paginate.NullTime   `json:"timestamp_null" paginate:"col=timestamp_null"`
+	DummyTimeTZStamp paginate.NullTime   `json:"timestamp_tz_null" paginate:"col=timestamp_tz_null"`
 }
 
 func main() {
@@ -38,7 +42,7 @@ func main() {
 	}
 	fmt.Println("You connected to your database.")
 
-	u, err := url.Parse("http://localhost")
+	u, err := url.Parse("http://localhost?performer=bbbb")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -87,12 +91,13 @@ func main() {
 	}
 
 	fmt.Printf("This is the result: %+v\n", result)
+	fmt.Printf("\n")
 	sb, err := json.Marshal(result)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(string(sb))
 	fmt.Printf("%+v\n", paginator.Response())
+	fmt.Printf("\n")
 
 	result2 := make([]HistoryEvent, 0)
 
@@ -100,6 +105,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
+	fmt.Printf("\n")
 	fmt.Printf("%+v\n", result2)
 }

@@ -272,7 +272,7 @@ func (p *paginator) validateTable() error {
 			continue
 		case time.Time:
 			continue
-		case NullInt, NullBool, NullString:
+		case NullInt, NullBool, NullString, NullTime:
 			continue
 		default:
 			return fmt.Errorf("paginate: invalid type for field %q", fieldName)
@@ -428,6 +428,9 @@ func (p *paginator) GetRowPtrArgs() []interface{} {
 		case NullString:
 			var ni NullString
 			p.tmp = append(p.tmp, &ni)
+		case NullTime:
+			var nt NullTime
+			p.tmp = append(p.tmp, &nt)
 		case string:
 			var s sql.NullString
 			p.tmp = append(p.tmp, &s)

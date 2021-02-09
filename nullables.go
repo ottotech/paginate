@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 type NullInt struct {
@@ -149,5 +150,55 @@ func (ns *NullString) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	ns.String, ns.Valid = string(data), true
+	return nil
+}
+
+type NullTime struct {
+	Time  time.Time
+	Valid bool // Valid is true if Time is not NULL
+}
+
+func (nt *NullTime) Scan(value interface{}) error {
+	if value == nil {
+		nt.Time, nt.Valid = time.Time{}, false
+		return nil
+	}
+	timeVal, ok := value.(time.Time)
+	if !ok {
+		return fmt.Errorf("column is not timestamp")
+	}
+	nt.Valid = true
+	nt.Time = timeVal
+	return nil
+}
+
+func (nt NullTime) Value() (driver.Value, error) {
+	if !nt.Valid {
+		return nil, nil
+	}
+	return nt.Time, nil
+}
+
+func (nt NullTime) MarshalJSON() ([]byte, error) {
+	if !nt.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(nt.Time)
+}
+
+func (nt *NullTime) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		nt.Time, nt.Valid = time.Time{}, false
+		return nil
+	}
+
+	// Here we unmarshall to json the time object as defined in
+	// https://golang.org/pkg/time/#Time.UnmarshalJSON.
+	t, err := time.Parse(`"`+time.RFC3339+`"`, string(data))
+	if err != nil {
+		return err
+	}
+
+	nt.Time, nt.Valid = t, true
 	return nil
 }
