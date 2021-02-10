@@ -658,7 +658,7 @@ func (p *paginator) AddWhereClause(clause RawWhereClause) error {
 		return fmt.Errorf("paginate: cannot receive arguments when placeholders are not given")
 	}
 	if len(occurrences) > 0 && len(occurrences) != len(clause.args) {
-		return fmt.Errorf("paginate: the number of placeholder and arguments in the where clause should be the same")
+		return fmt.Errorf("paginate: the number of placeholders and arguments in the where clause should be the same")
 	}
 
 	p.predicates = append(p.predicates, clause)
