@@ -75,7 +75,7 @@ Example of the table struct field tags and their meanings
 	// So, for example, in this case a request parameter "person_id" will be
 	// used to filter the records of the given table based on the values of
 	// the column "id".
-	ID int `paginate:"col="id";param=person_id"`
+	ID int `paginate:"col=id;param=person_id"`
 
 	// The tag "id" is required. If it is not given, Paginator cannot be instantiated
 	// and it will throw an error. The tag "id" allows Paginator to keep the same order
