@@ -123,9 +123,9 @@ type paginator struct {
 	fields []string
 
 	// filters holds the names of the columns of the table that the user
-	// wants to filter. By default all the fields of the table struct can
-	// be filtered. A user can explicitly tell paginator not to filter a
-	// column by specifying the "nofilter" tag in the table struct fields.
+	// wants to filter. By default all the fields of the table struct cannot
+	// be filtered. A user can explicitly tell paginator to filter a
+	// column by specifying the "filter" tag in the table struct fields.
 	filters []string
 
 	// rows holds the paginated values scanned by the Scan method in the
@@ -365,9 +365,9 @@ func (p *paginator) getFieldNames() {
 
 func (p *paginator) getFilters() {
 
-	hasnofilter := func(tags []string) bool {
+	hasfilter := func(tags []string) bool {
 		for _, tag := range tags {
-			if tag == nofilter {
+			if tag == filter {
 				return true
 			}
 		}
@@ -377,7 +377,7 @@ func (p *paginator) getFilters() {
 	for i := 0; i < p.rv.NumField(); i++ {
 		field := p.rv.Type().Field(i)
 		tags := strings.Split(field.Tag.Get("paginate"), tagsep)
-		if hasnofilter(tags) {
+		if !hasfilter(tags) {
 			continue
 		}
 		sneakName := parseCamelCaseToSnakeLowerCase(field.Name)
@@ -648,10 +648,6 @@ func (p *paginator) validateDest(dest interface{}) error {
 }
 
 func (p *paginator) AddWhereClause(clause RawWhereClause) error {
-	if clause.isEmpty() {
-		return fmt.Errorf("paginate: given where clause %+v contains zero values", clause)
-	}
-
 	re := regexp.MustCompile("[?]")
 	occurrences := re.FindAll([]byte(clause.predicate), -1)
 	if len(occurrences) == 0 && len(clause.args) > 0 {
