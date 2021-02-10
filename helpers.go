@@ -239,7 +239,7 @@ func getRequestData(v url.Values) paginationRequest {
 	return p
 }
 
-func createWhereClause(colNames []string, params parameters, c chan whereClause) {
+func createWhereClause(colNames []string, params parameters, extraWhereClauses []RawWhereClause, c chan whereClause) {
 	w := whereClause{}
 	var WHERE = " WHERE "
 	var AND = " AND "
@@ -272,6 +272,12 @@ func createWhereClause(colNames []string, params parameters, c chan whereClause)
 				}
 			}
 		}
+	}
+
+	// If there are extra custom where clauses we append them here.
+	for _, predicate := range extraWhereClauses {
+		clauses = append(clauses, predicate.String())
+		values = append(values, predicate.Args...)
 	}
 
 	// Let's use an appropriate `separator` to join the clauses

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +86,8 @@ type Paginator interface {
 	// the pagination, so that clients can do proper and subsequent pagination
 	// operations.
 	Response() PaginationResponse
+
+	AddWhereClause(clause RawWhereClause) error
 }
 
 // paginator is the concrete type that implements the Paginator interface.
@@ -93,6 +96,8 @@ type paginator struct {
 	// given table should be of type struct and its fields represent the
 	// columns of the table in the database.
 	table interface{}
+
+	predicates []RawWhereClause
 
 	// name is the name of the table in the database. This package will
 	// infer the name of the table from name of the given table struct
@@ -185,7 +190,7 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 	c1 := make(chan whereClause)
 	c2 := make(chan string)
 	c3 := make(chan string)
-	go createWhereClause(p.cols, p.parameters, c1)
+	go createWhereClause(p.cols, p.parameters, p.predicates, c1)
 	go createPaginationClause(p.pageNumber, p.pageSize, c2)
 	go createOrderByClause(p.parameters, p.cols, p.id, c3)
 	where := <-c1
@@ -639,5 +644,23 @@ func (p *paginator) validateDest(dest interface{}) error {
 			p.rv.Type().String())
 	}
 
+	return nil
+}
+
+func (p *paginator) AddWhereClause(clause RawWhereClause) error {
+	if clause.isEmpty() {
+		return fmt.Errorf("paginate: given where clause %+v contains zero values", clause)
+	}
+
+	re := regexp.MustCompile("[?]")
+	occurrences := re.FindAll([]byte(clause.Predicate), -1)
+	if len(occurrences) == 0 && len(clause.Args) > 0 {
+		return fmt.Errorf("paginate: cannot receive arguments when placeholders are not given")
+	}
+	if len(occurrences) > 0 && len(occurrences) != len(clause.Args) {
+		return fmt.Errorf("paginate: the number of placeholder and arguments in the where clause should be the same")
+	}
+
+	p.predicates = append(p.predicates, clause)
 	return nil
 }
