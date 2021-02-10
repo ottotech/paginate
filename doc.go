@@ -83,5 +83,12 @@ Example of the table struct field tags and their meanings
 	// Usually, the column name used with this tag should be the primary key or unique identifier
 	// of the given table.
 	ID int `paginate:"id"`
+
+NOTES:
+
+Paginator does not take into consideration performance since it uses the OFFSET sql argument
+which reads and counts all rows from the beginning until it reaches the requested page. For
+not too big datasets Paginator will just work fine. If you care about performance because you
+are dealing with heavy data you might want to write a custom solution for that.
 */
 package paginate
