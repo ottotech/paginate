@@ -280,7 +280,7 @@ func createWhereClause(colNames []string, params parameters, extraWhereClauses [
 		values = append(values, predicate.args...)
 	}
 
-	// Let's use an appropriate `separator` to join the clauses
+	// Let's use an appropriate `separator` to join the clauses.
 	if len(clauses) == 1 {
 		separator = ""
 	} else {
