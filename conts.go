@@ -35,6 +35,6 @@ const (
 	// We use param to map a request parameter with a column name
 	// from a database table.
 	param = "param"
-	// We use nofilter determine which columns need to be filtered.
+	// We use filter to determine which columns need to be filtered.
 	filter = "filter"
 )

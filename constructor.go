@@ -10,7 +10,7 @@ import (
 type Option func(p *paginator) error
 
 // TableName is an option for NewPaginator which indicates
-// the name of the table that we want to paginate in the
+// the name of the table that paginator will paginate in the
 // database. Use this option if the name of your database
 // table cannot be inferred by the given struct table name.
 func TableName(name string) Option {
@@ -25,8 +25,8 @@ func TableName(name string) Option {
 }
 
 // PageSize is an option for NewPaginator which indicates
-// the size in number of records that we want our paginator
-// to produce per page. ``size`` should be an uint value
+// the size of the record set that we want our paginator
+// object to produce per page. ``size`` should be an uint value
 // greater than zero. Use this option if you want finer
 // control on the pagination size. Using this option will
 // override the ``page_size`` parameter coming from the
@@ -42,6 +42,7 @@ func PageSize(size uint) Option {
 }
 
 // NewPaginator creates a Paginator object ready to paginate data from a database table.
+//
 // See TableName and PageSize options for NewPaginator.
 //
 // When the PageSize option is not given paginator will try to get the page size from the

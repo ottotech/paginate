@@ -63,6 +63,7 @@ type Paginator interface {
 	// common Go types:
 	//
 	//    *string
+	//	  *[]byte
 	//    *int, *int8, *int16, *int32, *int64
 	//    *uint, *uint8, *uint16, *uint32, *uint64
 	//    *bool
@@ -79,7 +80,8 @@ type Paginator interface {
 	// 	  - sql.NullBool
 	// 	  - sql.NullTime
 	//
-	// Nullable fields of other types will not be handled by Scan.
+	// For other nullable fields that you might want Scan to handle use
+	// the nullable types provided by this package.
 	Scan(dest interface{}) error
 
 	// Response returns a PaginationResponse containing useful information about
@@ -87,6 +89,8 @@ type Paginator interface {
 	// operations.
 	Response() PaginationResponse
 
+	// AddWhereClause adds a custom raw where clause that paginator can use to
+	// filter out the rows of the target table in the database.
 	AddWhereClause(clause RawWhereClause) error
 }
 
