@@ -653,11 +653,11 @@ func (p *paginator) AddWhereClause(clause RawWhereClause) error {
 	}
 
 	re := regexp.MustCompile("[?]")
-	occurrences := re.FindAll([]byte(clause.Predicate), -1)
-	if len(occurrences) == 0 && len(clause.Args) > 0 {
+	occurrences := re.FindAll([]byte(clause.predicate), -1)
+	if len(occurrences) == 0 && len(clause.args) > 0 {
 		return fmt.Errorf("paginate: cannot receive arguments when placeholders are not given")
 	}
-	if len(occurrences) > 0 && len(occurrences) != len(clause.Args) {
+	if len(occurrences) > 0 && len(occurrences) != len(clause.args) {
 		return fmt.Errorf("paginate: the number of placeholder and arguments in the where clause should be the same")
 	}
 

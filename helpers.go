@@ -277,7 +277,7 @@ func createWhereClause(colNames []string, params parameters, extraWhereClauses [
 	// If there are extra custom where clauses we append them here.
 	for _, predicate := range extraWhereClauses {
 		clauses = append(clauses, predicate.String())
-		values = append(values, predicate.Args...)
+		values = append(values, predicate.args...)
 	}
 
 	// Let's use an appropriate `separator` to join the clauses

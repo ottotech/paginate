@@ -6,26 +6,26 @@ import (
 )
 
 type RawWhereClause struct {
-	Predicate string
-	Args      []interface{}
+	predicate string
+	args      []interface{}
 }
 
 func (raw RawWhereClause) String() string {
-	pred := strings.Replace(raw.Predicate, "?", "$%v", -1)
+	pred := strings.Replace(raw.predicate, "?", "$%v", -1)
 	return fmt.Sprint(pred)
 }
 
 func (raw RawWhereClause) isEmpty() bool {
-	if raw.Predicate == "" || len(raw.Args) == 0 {
+	if raw.predicate == "" || len(raw.args) == 0 {
 		return true
 	}
 	return false
 }
 
 func (raw *RawWhereClause) AddArg(v interface{}) {
-	raw.Args = append(raw.Args, v)
+	raw.args = append(raw.args, v)
 }
 
 func (raw *RawWhereClause) AddPredicate(predicate string) {
-	raw.Predicate = predicate
+	raw.predicate = predicate
 }
