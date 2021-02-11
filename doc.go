@@ -1,7 +1,7 @@
 /*
 Package paginate provides a basic Paginator object to paginate records of a single database table.
 Its primary job is to generate a raw sql command with the corresponding arguments that can be
-executed against a sequel database with an sql database driver of your preference.
+executed against a sequel database with an sql driver of your preference.
 
 Paginator also provides some utility functions like GetRowPtrArgs, NextData, and Scan, to make
 easy to retrieve and read the paginated data.
@@ -55,7 +55,7 @@ Example of the table struct field tags and their meanings
 	// so in this case the column name would be "person_name".
 	// If no "col" tag is given Paginator will infer the database
 	// column name from the name of the struct field in snake lowercase
-	// form. So given a struct field "MyName" Paginator will infer the
+	// form. So given a struct field "MyName", Paginator will infer the
 	// the database column name as "my_name".
 	Name string `paginate:"col=person_name"`
 
@@ -66,7 +66,7 @@ Example of the table struct field tags and their meanings
 	LastName string `paginate:"filter"`
 
 	// By default, once a database column has been defined as filterable
-	// with the tag "filter", Paginator will map request parameters with
+	// with the tag "filter", Paginator will map the request parameters with
 	// the column names of the given table and it will filter the table
 	// accordingly. However, in some cases you might want to have different
 	// names for your request parameters in order to be more expressive.
@@ -78,9 +78,9 @@ Example of the table struct field tags and their meanings
 	ID int `paginate:"col=id;param=person_id"`
 
 	// The tag "id" is required. If it is not given, Paginator cannot be instantiated
-	// and it will throw an error. The tag "id" allows Paginator to keep the same order
+	// and it will return an error. The tag "id" allows Paginator to keep the same order
 	// between pages and results. In simple words, it will make the pagination deterministic.
-	// Usually, the column name used with this tag should be the primary key or unique identifier
+	// Usually, the column used with this tag should be the primary key or unique identifier
 	// of the given table.
 	ID int `paginate:"id"`
 
@@ -90,5 +90,9 @@ Paginator does not take into consideration performance since it uses the OFFSET 
 which reads and counts all rows from the beginning until it reaches the requested page. For
 not too big datasets Paginator will just work fine. If you care about performance because you
 are dealing with heavy data you might want to write a custom solution for that.
+
+USAGE EXAMPLES:
+
+Check the examples folder in the repository of the package to learn more about how use paginate.
 */
 package paginate

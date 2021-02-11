@@ -5,8 +5,6 @@ import (
 	"log"
 	"net/url"
 	"testing"
-	//"reflect"
-	//"testing"
 )
 
 func ExampleNewPaginator_1() {
