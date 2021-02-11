@@ -87,45 +87,61 @@ func ExampleNewPaginator_3() {
 	// arg $1: Ringo
 	// arg $2: Star
 }
-//
-//func ExampleNewPaginator_4() {
-//	tableName := "test"
-//	colNames := []string{"system", "name", "lastname"}
-//	u, err := url.Parse("http://ottotech.com?system=hipaca&sort=+name,-lastname&page_size=7")
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	paginator := NewPaginator(tableName, colNames, *u)
-//	sql, args, _ := paginator.Paginate()
-//	fmt.Println(sql)
-//	fmt.Printf("arg $1: %v\n", args[0])
-//	// Output:
-//	// SELECT system, name, lastname, count(*) over() FROM test WHERE system = $1 ORDER BY name ASC,lastname DESC,id LIMIT 7 OFFSET 0
-//	// arg $1: hipaca
-//}
-//
-//func ExampleNewPaginator_5() {
-//	tableName := "test"
-//	colNames := []string{"column1", "column2", "column3", "column4"}
-//	u, err := url.Parse("http://ottotech.com?column1>2&column2<4&column3>=40&column4<=7")
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	paginator := NewPaginator(tableName, colNames, *u)
-//	sql, args, _ := paginator.Paginate()
-//	fmt.Println(sql)
-//	fmt.Printf("arg $1: %v\n", args[0])
-//	fmt.Printf("arg $2: %v\n", args[1])
-//	fmt.Printf("arg $3: %v\n", args[2])
-//	fmt.Printf("arg $4: %v\n", args[3])
-//	// Output:
-//	// SELECT column1, column2, column3, column4, count(*) over() FROM test WHERE column1 > $1 AND column2 < $2 AND column3 >= $3 AND column4 <= $4 ORDER BY id LIMIT 30 OFFSET 0
-//	// arg $1: 2
-//	// arg $2: 4
-//	// arg $3: 40
-//	// arg $4: 7
-//}
-//
+
+func ExampleNewPaginator_4() {
+	type Person struct {
+		ID int `paginate:"id"`
+		Name string `paginate:"filter"`
+		LastName string `paginate:"filter"`
+	}
+	u, err := url.Parse("http://ottotech.com?name=Ringo&sort=+name,-last_name&page_size=7")
+	if err != nil {
+		log.Fatal(err)
+	}
+	paginator, err := NewPaginator(Person{}, *u)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	sql, args, err := paginator.Paginate()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(sql)
+	fmt.Printf("arg $1: %v\n", args[0])
+	// Output:
+	// SELECT id, name, last_name, count(*) over() FROM person WHERE name = $1 ORDER BY name ASC,last_name DESC,id LIMIT 7 OFFSET 0
+	// arg $1: Ringo
+}
+
+func ExampleNewPaginator_5() {
+	type Person struct {
+		ID int `paginate:"id"`
+		Name string `paginate:"filter"`
+		LastName string `paginate:"filter"`
+		Age int `paginate:"filter"`
+		Salary float64 `paginate:"filter"`
+	}
+	u, err := url.Parse("http://ottotech.com?age>20&salary<80000")
+	if err != nil {
+		log.Fatal(err)
+	}
+	paginator, err := NewPaginator(Person{}, *u)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	sql, args, err := paginator.Paginate()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(sql)
+	fmt.Printf("arg $1: %v\n", args[0])
+	fmt.Printf("arg $2: %v\n", args[1])
+	// Output:
+	// SELECT id, name, last_name, age, salary, count(*) over() FROM person WHERE age > $1 AND salary < $2 ORDER BY id LIMIT 30 OFFSET 0
+	// arg $1: 20
+	// arg $2: 80000
+}
+
 //func ExampleNewPaginatorWithLimit_1() {
 //	tableName := "test"
 //	colNames := []string{"system"}
