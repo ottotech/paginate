@@ -356,6 +356,17 @@ func parseCamelCaseToSnakeLowerCase(camelCase string) string {
 	var s []string
 	var lastIndexChecked int
 	var isSneakCase = true
+	var allAreUpperCase = true
+
+	for j := 0; j < len(camelCase); j++ {
+		if !unicode.IsUpper(rune(camelCase[j])) {
+			allAreUpperCase = false
+		}
+	}
+
+	if allAreUpperCase {
+		return strings.ToLower(camelCase)
+	}
 
 	for i := len(camelCase) - 1; i >= 0; i-- {
 		if unicode.IsUpper(rune(camelCase[i])) {
