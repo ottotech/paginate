@@ -104,8 +104,8 @@ type paginator struct {
 	// columns of the table in the database.
 	table interface{}
 
-	// predicates holds custom raw where clauses created by the user of the
-	// package which will be executed with the other where clauses if any.
+	// predicates holds custom where clauses created by a user of this
+	// package which will be executed in the helper createWhereClause.
 	predicates []RawWhereClause
 
 	// stop is used by NextData and Scan. Scan will set the value of stop
