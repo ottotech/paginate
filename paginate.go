@@ -104,7 +104,14 @@ type paginator struct {
 	// columns of the table in the database.
 	table interface{}
 
+	// predicates holds custom raw where clauses created by the user of the
+	// package which will be executed with the other where clauses if any.
 	predicates []RawWhereClause
+
+	// stop is used by NextData and Scan. Scan will set the value of stop
+	// to true whenever Scan returns an error. This will allow NextData to
+	// stop looping over p.rows.
+	stop bool
 
 	// name is the name of the table in the database. This package will
 	// infer the name of the table from name of the given table struct
@@ -581,10 +588,19 @@ func (p *paginator) NextData() bool {
 	if len(p.tmp) > 0 {
 		p.addRow()
 	}
+	if p.stop || p.closed {
+		return false
+	}
 	return len(p.rows) > 0
 }
 
-func (p *paginator) Scan(dest interface{}) error {
+func (p *paginator) Scan(dest interface{}) (err error) {
+	defer func() {
+		if err != nil {
+			p.stop = true
+		}
+	}()
+
 	if dest == nil {
 		return fmt.Errorf("paginate: cannot pass nil as dest")
 	}
@@ -593,7 +609,7 @@ func (p *paginator) Scan(dest interface{}) error {
 		return ErrPaginatorIsClosed
 	}
 
-	if err := p.validateDest(dest); err != nil {
+	if err = p.validateDest(dest); err != nil {
 		return err
 	}
 
