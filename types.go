@@ -2,9 +2,6 @@ package paginate
 
 type parameters []parameter
 
-// getParameter will try to get a parameter with the given name from
-// parameters. If there is no parameter with that name getParameter
-// will return false, otherwise true.
 func (params *parameters) getParameter(name string) (parameter, bool) {
 	for _, p := range *params {
 		if p.name == name {
@@ -14,16 +11,16 @@ func (params *parameters) getParameter(name string) (parameter, bool) {
 	return parameter{}, false
 }
 
-// parameter holds information about a parameter passed in the url.Values from a http.Request.
+// parameter holds information about a parameter passed in the url.Values from an http.Request.
 type parameter struct {
 	name  string
 	sign  string
 	value string
 }
 
-// paginationRequest holds information about the paginator that the client
-// wants to execute. The helper function getRequestData() helps this package to
-// get this information from the url.Values of an http.Request.
+// paginationRequest holds information about the pagination operation.
+// The helper function getRequestData() helps this package to get this
+// information from the url.Values of an http.Request.
 type paginationRequest struct {
 	pageNumber int
 	pageSize   int
