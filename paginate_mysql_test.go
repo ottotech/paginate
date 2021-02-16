@@ -2,6 +2,7 @@ package paginate
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestPaginatorMysql_HappyPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pag, err := NewPaginator(Employee{}, *u, TableName("employees"))
+	pag, err := NewPaginator(Employee{}, "mysql", *u, TableName("employees"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +132,7 @@ func TestPaginatorMysql_JsonMarshalling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pag, err := NewPaginator(Employee{}, *u, TableName("employees"))
+	pag, err := NewPaginator(Employee{}, "mysql", *u, TableName("employees"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,9 +179,9 @@ func TestPaginatorMysql_JsonMarshalling(t *testing.T) {
 // This test will check if the paginator can infer properly
 // the name of the target database table and its columns
 // from the given struct.
-func TestNewPaginator_DefaultTableAndColumnsInferring(t *testing.T) {
+func TestNewPaginatorMysql_DefaultTableAndColumnsInferring(t *testing.T) {
 	type Employees struct {
-		ID           int         `paginate:"id"`  // this is a mandatory tag.
+		ID           int `paginate:"id"` // this is a mandatory tag.
 		Name         string
 		LastName     string
 		WorkerNumber NullInt
@@ -199,7 +200,7 @@ func TestNewPaginator_DefaultTableAndColumnsInferring(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pag, err := NewPaginator(Employees{}, *u)
+	pag, err := NewPaginator(Employees{}, "mysql", *u)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,3 +243,88 @@ func TestNewPaginator_DefaultTableAndColumnsInferring(t *testing.T) {
 	}
 }
 
+func TestNewPaginatorMysql_RequestParameter_Equal(t *testing.T) {
+	type Employee struct {
+		ID           int         `paginate:"filter;id;col=id"`
+		Name         string      `paginate:"filter;col=name"`
+		LastName     string      `paginate:"filter;col=last_name"`
+		WorkerNumber NullInt     `paginate:"filter;col=worker_number"`
+		DateJoined   time.Time   `paginate:"filter;col=date_joined"`
+		Salary       float64     `paginate:"filter;col=salary"`
+		NullText     NullString  `paginate:"filter;col=null_text"`
+		NullVarchar  NullString  `paginate:"filter;col=null_varchar"`
+		NullBool     NullBool    `paginate:"filter;col=null_bool"`
+		NullDate     NullTime    `paginate:"filter;col=null_date"`
+		NullInt      NullInt     `paginate:"filter;col=null_int"`
+		NullFloat    NullFloat64 `paginate:"filter;col=null_float"`
+	}
+
+	u, err := url.Parse("http://localhost?name=Ringo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "mysql", *u, TableName("employees"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println(cmd)
+	fmt.Println(args)
+
+	rows, err := mysqlTestDB.Query(cmd, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("we should have 1 record in result; got %d", len(results))
+	}
+
+	if results[0].Name != "Ringo" {
+		t.Errorf("expected Ringo in record inside results; got %s", results[0].Name)
+	}
+
+	if results[0].LastName != "Star" {
+		t.Errorf("expected Star in record inside results; got %s", results[0].LastName)
+	}
+
+	if results[0].WorkerNumber.Int != 1 {
+		t.Errorf("expected WorkNumber = 1 in record inside results; got %d", results[0].WorkerNumber.Int)
+	}
+
+	todayDateStr := time.Now().Format("2006/01/02")
+	dateJoinedStr := results[0].DateJoined.Format("2006/01/02")
+
+	if todayDateStr != dateJoinedStr {
+		t.Errorf("expected DateJoined to be %s; got %s instead", todayDateStr, dateJoinedStr)
+	}
+}

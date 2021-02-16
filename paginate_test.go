@@ -18,7 +18,7 @@ func ExampleNewPaginator_1() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	paginator, err := NewPaginator(app, *u, opt)
+	paginator, err := NewPaginator(app, "postgres", *u, opt)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -43,7 +43,7 @@ func ExampleNewPaginator_2() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	paginator, err := NewPaginator(Person{}, *u)
+	paginator, err := NewPaginator(Person{}, "postgres", *u)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -70,7 +70,7 @@ func ExampleNewPaginator_3() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	paginator, err := NewPaginator(Person{}, *u)
+	paginator, err := NewPaginator(Person{}, "postgres", *u)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -97,7 +97,7 @@ func ExampleNewPaginator_4() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	paginator, err := NewPaginator(Person{}, *u)
+	paginator, err := NewPaginator(Person{}, "postgres", *u)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -124,7 +124,7 @@ func ExampleNewPaginator_5() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	paginator, err := NewPaginator(Person{}, *u)
+	paginator, err := NewPaginator(Person{}, "postgres", *u)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -151,7 +151,7 @@ func ExampleNewPaginatorWithPageSize15() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	paginator, err := NewPaginator(Person{}, *u, PageSize(15))
+	paginator, err := NewPaginator(Person{}, "postgres", *u, PageSize(15))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -176,7 +176,7 @@ func ExampleTestINSqlClause() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	paginator, err := NewPaginator(Person{}, *u)
+	paginator, err := NewPaginator(Person{}, "postgres", *u)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -203,7 +203,7 @@ func ExampleTestNotINSqlClause() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	paginator, err := NewPaginator(Person{}, *u)
+	paginator, err := NewPaginator(Person{}, "postgres", *u)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -233,7 +233,7 @@ func ExampleTestNOFilterTag() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	paginator, err := NewPaginator(Person{}, *u)
+	paginator, err := NewPaginator(Person{}, "postgres", *u)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -258,7 +258,7 @@ func TestCreateWhereClauseMultipleFilters(t *testing.T) {
 	param6 := parameter{"cars", "<=", "5"}
 	params := parameters{param1, param2, param3, param4, param5, param6}
 	c := make(chan whereClause)
-	go createWhereClause(colNames, params, []RawWhereClause{}, c)
+	go createWhereClause("postgres", colNames, params, []RawWhereClause{}, c)
 	where := <-c
 	if !where.exists {
 		t.Errorf("where clauses should exists; got %v", where.exists)
