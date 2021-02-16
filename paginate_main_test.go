@@ -53,6 +53,8 @@ CREATE TABLE employees
      null_varchar  VARCHAR(100) NULL,
      null_bool     TINYINT(1) NULL,
 	 null_date     TIMESTAMP NULL,
+	 null_int      INT NULL,
+	 null_float    FLOAT NULL,
      CONSTRAINT employee_worker_number_uindex UNIQUE (worker_number)
   );
 `
