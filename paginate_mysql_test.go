@@ -175,6 +175,70 @@ func TestPaginatorMysql_JsonMarshalling(t *testing.T) {
 	}
 }
 
+// This test will check if the paginator can infer properly
+// the name of the target database table and its columns
+// from the given struct.
 func TestNewPaginator_DefaultTableAndColumnsInferring(t *testing.T) {
+	type Employees struct {
+		ID           int         `paginate:"id"`  // this is a mandatory tag.
+		Name         string
+		LastName     string
+		WorkerNumber NullInt
+		DateJoined   time.Time
+		Salary       float64
+		NullText     NullString
+		NullVarchar  NullString
+		NullBool     NullBool
+		NullDate     NullTime
+		NullInt      NullInt
+		NullFloat    NullFloat64
+	}
 
+	u, err := url.Parse("http://localhost")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pag, err := NewPaginator(Employees{}, *u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := mysqlTestDB.Query(cmd, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employees, 0)
+
+	for pag.NextData() {
+		employee := Employees{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	if len(results) != 10 {
+		t.Errorf("we should have 10 records in result; got %d", len(results))
+	}
 }
+
