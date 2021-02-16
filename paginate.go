@@ -99,6 +99,8 @@ type Paginator interface {
 
 // paginator is the concrete type that implements the Paginator interface.
 type paginator struct {
+	dialect string
+
 	// table is a representation of a database table and its columns. The
 	// given table should be of type struct and its fields represent the
 	// columns of the table in the database.
@@ -206,22 +208,26 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 	c1 := make(chan whereClause)
 	c2 := make(chan string)
 	c3 := make(chan string)
-	go createWhereClause(p.cols, p.parameters, p.predicates, c1)
+	go createWhereClause(p.dialect, p.cols, p.parameters, p.predicates, c1)
 	go createPaginationClause(p.pageNumber, p.pageSize, c2)
 	go createOrderByClause(p.parameters, p.cols, p.id, c3)
 	where := <-c1
 	pagination := <-c2
 	order := <-c3
 
-	numArgs := len(where.args)
-	placeholders := make([]interface{}, 0)
-	for i := 1; i < numArgs+1; i++ {
-		placeholders = append(placeholders, i)
-	}
-
 	if where.exists {
 		s = "SELECT " + strings.Join(p.cols, ", ") + ", count(*) over() FROM " + p.name + where.clause + order + pagination
-		s = fmt.Sprintf(s, placeholders...)
+		// As an special case we need to enumerate the placeholders if users are using
+		// postgres. See, for example, the documentation of this postgres driver library:
+		// https://pkg.go.dev/github.com/lib/pq#section-documentation
+		if p.dialect == "postgres" {
+			numArgs := len(where.args)
+			placeholders := make([]interface{}, 0)
+			for i := 1; i < numArgs+1; i++ {
+				placeholders = append(placeholders, i)
+			}
+			s = fmt.Sprintf(s, placeholders...)
+		}
 	} else {
 		s = "SELECT " + strings.Join(p.cols, ", ") + ", count(*) over() FROM " + p.name + order + pagination
 	}

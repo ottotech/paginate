@@ -50,8 +50,13 @@ func PageSize(size uint) Option {
 // will set the Paginator with the default page size which is 30. When the TableName option
 // is not given, NewPaginator will infer the database table name from the table argument
 // given, so it will extract the name from the struct variable.
-func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, error) {
-	p := &paginator{table: table, rv: reflect.ValueOf(table)}
+func NewPaginator(table interface{}, dialect string, u url.URL, opts ...Option) (Paginator, error) {
+	err := dialectPlaceholder.CheckIfDialectIsSupported(dialect)
+	if err != nil {
+		return nil, err
+	}
+
+	p := &paginator{table: table, rv: reflect.ValueOf(table), dialect: dialect}
 
 	// Let's try to set the options if any.
 	for _, opt := range opts {

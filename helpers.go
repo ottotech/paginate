@@ -239,7 +239,7 @@ func getRequestData(v url.Values) paginationRequest {
 	return p
 }
 
-func createWhereClause(colNames []string, params parameters, extraWhereClauses []RawWhereClause, c chan whereClause) {
+func createWhereClause(dialect string, colNames []string, params parameters, extraWhereClauses []RawWhereClause, c chan whereClause) {
 	w := whereClause{}
 	var WHERE = " WHERE "
 	var AND = " AND "
@@ -256,7 +256,7 @@ func createWhereClause(colNames []string, params parameters, extraWhereClauses [
 					for _, v := range vals {
 						values = append(values, v)
 					}
-					placeholder := "$%v"
+					placeholder := dialectPlaceholder.GetPlaceHolder(dialect)
 					str := ""
 					for i := 0; i < len(vals); i++ {
 						if i == len(vals)-1 {
@@ -268,7 +268,10 @@ func createWhereClause(colNames []string, params parameters, extraWhereClauses [
 					clauses = append(clauses, p.name+" "+p.sign+fmt.Sprintf("(%s)", str))
 				default:
 					values = append(values, p.value)
-					clauses = append(clauses, p.name+" "+p.sign+" $%v")
+					clauses = append(
+						clauses,
+						fmt.Sprintf("%s %s %s", p.name, p.sign, dialectPlaceholder.GetPlaceHolder(dialect)),
+					)
 				}
 			}
 		}
