@@ -160,8 +160,21 @@ func TestPaginatorMysql_JsonMarshalling(t *testing.T) {
 
 	results := make([]Employee, 0)
 
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
 	_, err = json.Marshal(results)
 	if err != nil {
 		t.Errorf("we should be able to marshal results into json; got err %s", err)
 	}
+}
+
+func TestNewPaginator_DefaultTableAndColumnsInferring(t *testing.T) {
+
 }
