@@ -52,9 +52,9 @@ CREATE TABLE employees
      null_text     TEXT NULL,
      null_varchar  VARCHAR(100) NULL,
      null_bool     TINYINT(1) NULL,
+	 null_date     TIMESTAMP NULL,
      CONSTRAINT employee_worker_number_uindex UNIQUE (worker_number)
-  ); 
-
+  );
 `
 
 	ctx := context.Background()
