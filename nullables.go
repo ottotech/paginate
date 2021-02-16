@@ -40,9 +40,9 @@ func (ni *NullInt) Scan(value interface{}) error {
 		intVal = int(t)
 	case uint64:
 		intVal = int(t)
-	// As an special case when passing custom types for int values that implement the Scanner interface to the
+	// As an special case when passing custom types that implement the Scanner interface to the
 	// driver "go-sql-driver/mysql", the driver will return []uint8. Therefore, we need to try to parse that returned
-	// value to string and finally to int if possible.
+	// value to string and finally to int in this case if possible.
 	// Check issue: https://github.com/go-sql-driver/mysql/issues/441
 	case []uint8:
 		_int, err := strconv.Atoi(string(t))
@@ -95,8 +95,21 @@ func (nb *NullBool) Scan(value interface{}) error {
 		nb.Bool, nb.Valid = false, false
 		return nil
 	}
-	boolVal, ok := value.(bool)
-	if !ok {
+	boolVal := false
+	switch t := value.(type) {
+	case bool:
+		boolVal = t
+	// As an special case when passing custom types that implement the Scanner interface to the
+	// driver "go-sql-driver/mysql", the driver will return []uint8. Therefore, we need to try to parse that returned
+	// value to string and finally to bool in this case if possible.
+	// Check issue: https://github.com/go-sql-driver/mysql/issues/441
+	case []uint8:
+		_bool, err := strconv.ParseBool(string(t))
+		if err != nil {
+			return err
+		}
+		boolVal = _bool
+	default:
 		return fmt.Errorf("column is not boolean")
 	}
 	nb.Valid = true
