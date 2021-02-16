@@ -95,6 +95,7 @@ func (nb *NullBool) Scan(value interface{}) error {
 		nb.Bool, nb.Valid = false, false
 		return nil
 	}
+
 	boolVal := false
 	switch t := value.(type) {
 	case bool:
@@ -105,6 +106,12 @@ func (nb *NullBool) Scan(value interface{}) error {
 	// Check issue: https://github.com/go-sql-driver/mysql/issues/441
 	case []uint8:
 		_bool, err := strconv.ParseBool(string(t))
+		if err != nil {
+			return err
+		}
+		boolVal = _bool
+	case int64:
+		_bool, err := strconv.ParseBool(strconv.FormatInt(t, 10))
 		if err != nil {
 			return err
 		}
