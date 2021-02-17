@@ -68,5 +68,3 @@ func (raw *RawWhereClause) AddPredicate(predicate string) {
 func (raw *RawWhereClause) AddArg(v interface{}) {
 	raw.args = append(raw.args, v)
 }
-
-

@@ -29,7 +29,6 @@ func createMysqlDatabaseAndTestingTable() error {
 
 	_, err = defaultDB.Exec(fmt.Sprintf("CREATE DATABASE %s;", "paginate_test"))
 	if err != nil {
-		fmt.Println("hello")
 		return err
 	}
 	defaultDB.Close()

@@ -41,6 +41,20 @@ func PageSize(size uint) Option {
 	}
 }
 
+func OrderByAsc(column string) Option {
+	return func(p *paginator) error {
+		p.orderBy = append(p.orderBy, fmt.Sprintf("%s %s", column, "ASC"))
+		return nil
+	}
+}
+
+func OrderByDesc(column string) Option {
+	return func(p *paginator) error {
+		p.orderBy = append(p.orderBy, fmt.Sprintf("%s %s", column, "DESC"))
+		return nil
+	}
+}
+
 // NewPaginator creates a Paginator object ready to paginate data from a database table.
 //
 // The table parameter should be a struct object with fields representing the target
@@ -100,5 +114,9 @@ func NewPaginator(table interface{}, dialect string, u url.URL, opts ...Option) 
 	p.getFieldNames()
 	p.getFilters()
 	p.parameters = getParameters(p.cols, p.filters, p.mappers, u)
+
+	// Let's clean our orderBy slice and get unique values.
+	p.orderBy.UniqueValues(p.id)
+
 	return p, nil
 }

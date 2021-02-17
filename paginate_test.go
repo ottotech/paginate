@@ -315,7 +315,7 @@ func TestCreateOrderByClause_with_sorting_options(t *testing.T) {
 	colNames := []string{"id", "name", "lastname", "age", "address"}
 	params := parameters{{"sort", "=", "+name,-lastname,-age,+address"}}
 	c := make(chan string)
-	go createOrderByClause(params, colNames, "id", c)
+	go createOrderByClause(params, colNames, orderBy{}, "id", c)
 	clause := <-c
 	expectedCLAUSE := " ORDER BY name ASC,lastname DESC,age DESC,address ASC,id"
 	if clause != expectedCLAUSE {
@@ -327,7 +327,7 @@ func TestCreateOrderByClause_with_no_sorting_options(t *testing.T) {
 	colNames := []string{"name", "lastname", "age", "address"}
 	params := parameters{}
 	c := make(chan string)
-	go createOrderByClause(params, colNames, "id", c)
+	go createOrderByClause(params, colNames, orderBy{}, "id", c)
 	clause := <-c
 	expectedCLAUSE := " ORDER BY id"
 	if clause != expectedCLAUSE {

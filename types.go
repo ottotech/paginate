@@ -103,3 +103,22 @@ var dialectPlaceholder = __dialectPlaceholder{
 	"mysql":    "?",
 	"postgres": "$%v", // This can become later in $1 see: Paginate() implementation for more.
 }
+
+type orderBy []string
+
+func (o *orderBy) UniqueValues(skipId string) {
+	unique := make([]string, 0)
+	for _, s := range *o {
+		if s == skipId {
+			continue
+		}
+		in := isStringIn(s, unique)
+		if !in {
+			unique = append(unique, s)
+		}
+	}
+	*o = nil
+	for _, x := range unique {
+		*o = append(*o, x)
+	}
+}

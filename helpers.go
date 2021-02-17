@@ -313,37 +313,44 @@ func createPaginationClause(pageNumber int, pageSize int, c chan string) {
 	c <- clause
 }
 
-func createOrderByClause(params parameters, colNames []string, id string, c chan string) {
+func createOrderByClause(params parameters, colNames []string, customOrderByClauses orderBy, id string, c chan string) {
 	var ASC = "ASC"
 	var DESC = "DESC"
 
 	clauses := make([]string, 0)
 
-	sort, exists := params.getParameter("sort")
-	if !exists {
-		c <- fmt.Sprintf(" ORDER BY %s", id)
-		return
+	sort, sortParamExists := params.getParameter("sort")
+
+	if sortParamExists {
+		fields := strings.Split(sort.value, ",")
+		for _, v := range fields {
+			AscOrDesc := string(v[0])
+			field := v[1:]
+			for _, f := range colNames {
+				if f == id {
+					// we will always order the records by ID (see below). In order
+					// to keep the same order between pages or results deterministic.
+					// See: https://use-the-index-luke.com/sql/partial-results/fetch-next-page
+					continue
+				}
+				if field == f {
+					if AscOrDesc == "+" {
+						clauses = append(clauses, field+" "+ASC)
+					}
+					if AscOrDesc == "-" {
+						clauses = append(clauses, field+" "+DESC)
+					}
+				}
+			}
+		}
 	}
 
-	fields := strings.Split(sort.value, ",")
-	for _, v := range fields {
-		orderBy := string(v[0])
-		field := v[1:]
-		for _, f := range colNames {
-			if f == id {
-				// we will always order the records by ID (see below). In order
-				// to keep the same order between pages or results deterministic.
-				// See: https://use-the-index-luke.com/sql/partial-results/fetch-next-page
-				continue
-			}
-			if field == f {
-				if orderBy == "+" {
-					clauses = append(clauses, field+" "+ASC)
-				}
-				if orderBy == "-" {
-					clauses = append(clauses, field+" "+DESC)
-				}
-			}
+	// As an special case if there are custom "ORDER BY" clauses that are not already
+	// in "clauses", we will add them to make the sorting correctly.
+	for _, customOrderBy := range customOrderByClauses {
+		in := isStringIn(customOrderBy, clauses)
+		if !in {
+			clauses = append(clauses, customOrderBy)
 		}
 	}
 
