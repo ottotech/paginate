@@ -131,7 +131,7 @@ func NewPaginator(table interface{}, dialect string, u url.URL, opts ...Option) 
 	p.getFilters()
 	p.parameters = getParameters(p.cols, p.filters, p.mappers, u)
 
-	// Let's clean our orderBy orderByClauses.
+	// Let's clean our orderByClauses slice.
 	p.orderByClauses.Clean(p.id)
 
 	return p, nil
