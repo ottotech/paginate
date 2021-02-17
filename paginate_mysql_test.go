@@ -1226,3 +1226,184 @@ func TestNewPaginatorMysql_RequestParameter_Raw_Sql_IS_NULL_Clause(t *testing.T)
 		t.Errorf("we should have 10 records in result; got %d", len(results))
 	}
 }
+
+func TestNewPaginatorMysql_RequestParameter_Sort_ASC(t *testing.T) {
+	type Employee struct {
+		ID           int         `paginate:"id;col=id"`
+		Name         string      `paginate:"filter;col=name"`
+		LastName     string      `paginate:"col=last_name"`
+		WorkerNumber NullInt     `paginate:"col=worker_number"`
+		DateJoined   time.Time   `paginate:"col=date_joined"`
+		Salary       float64     `paginate:"col=salary"`
+		NullText     NullString  `paginate:"col=null_text"`
+		NullVarchar  NullString  `paginate:"col=null_varchar"`
+		NullBool     NullBool    `paginate:"col=null_bool"`
+		NullDate     NullTime    `paginate:"col=null_date"`
+		NullInt      NullInt     `paginate:"col=null_int"`
+		NullFloat    NullFloat64 `paginate:"col=null_float"`
+	}
+
+	u, err := url.Parse("http://localhost?sort=+name")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "mysql", *u, TableName("employees"), PageSize(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := mysqlTestDB.Query(cmd, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("we should have 1 record in result; got %d", len(results))
+	}
+
+	expectedResults := []struct {
+		Name, LastName string
+		WorkNumber     int
+		Salary         float64
+	}{
+		{
+			Name:       "Bill",
+			LastName:   "Gates",
+			WorkNumber: 2,
+			Salary:     1200000,
+		},
+	}
+
+	for _, e := range expectedResults {
+		isThere := false
+		for _, r := range results {
+			if r.Name == e.Name && r.LastName == e.LastName && r.WorkerNumber.Int == e.WorkNumber && r.Salary == e.Salary {
+				isThere = true
+				break
+			}
+		}
+		if !isThere {
+			t.Errorf("expected (%+v) in results", e)
+		}
+	}
+}
+
+
+func TestNewPaginatorMysql_RequestParameter_Sort_DESC(t *testing.T) {
+	type Employee struct {
+		ID           int         `paginate:"id;col=id"`
+		Name         string      `paginate:"filter;col=name"`
+		LastName     string      `paginate:"col=last_name"`
+		WorkerNumber NullInt     `paginate:"col=worker_number"`
+		DateJoined   time.Time   `paginate:"col=date_joined"`
+		Salary       float64     `paginate:"col=salary"`
+		NullText     NullString  `paginate:"col=null_text"`
+		NullVarchar  NullString  `paginate:"col=null_varchar"`
+		NullBool     NullBool    `paginate:"col=null_bool"`
+		NullDate     NullTime    `paginate:"col=null_date"`
+		NullInt      NullInt     `paginate:"col=null_int"`
+		NullFloat    NullFloat64 `paginate:"col=null_float"`
+	}
+
+	u, err := url.Parse("http://localhost?sort=-name")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "mysql", *u, TableName("employees"), PageSize(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := mysqlTestDB.Query(cmd, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("we should have 1 record in result; got %d", len(results))
+	}
+
+	expectedResults := []struct {
+		Name, LastName string
+		WorkNumber     int
+		Salary         float64
+	}{
+		{
+			Name:       "Rob",
+			LastName:   "Williams",
+			WorkNumber: 6,
+			Salary:     9880,
+		},
+	}
+
+	for _, e := range expectedResults {
+		isThere := false
+		for _, r := range results {
+			if r.Name == e.Name && r.LastName == e.LastName && r.WorkerNumber.Int == e.WorkNumber && r.Salary == e.Salary {
+				isThere = true
+				break
+			}
+		}
+		if !isThere {
+			t.Errorf("expected (%+v) in results (%+v)", e, results)
+		}
+	}
+}
