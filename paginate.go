@@ -99,6 +99,8 @@ type Paginator interface {
 
 // paginator is the concrete type that implements the Paginator interface.
 type paginator struct {
+	// dialect represents the sql dialect that paginator will use to build
+	// the sql command.
 	dialect string
 
 	// table is a representation of a database table and its columns. The

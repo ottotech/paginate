@@ -43,7 +43,10 @@ func PageSize(size uint) Option {
 
 // NewPaginator creates a Paginator object ready to paginate data from a database table.
 //
-// See TableName and PageSize options for NewPaginator.
+// The table parameter should be a struct object with fields representing the target
+// database table you want to paginate. The dialect parameter should be a string
+// representing the sql dialect you are using "postgres" or "mysql", for example.
+// For available options you can pass to Paginator check: TableName and PageSize.
 //
 // When the PageSize option is not given paginator will try to get the page size from the
 // request parameter ``page_size``. If there is no ``page_size`` parameter NewPaginator
