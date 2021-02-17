@@ -41,6 +41,11 @@ func PageSize(size uint) Option {
 	}
 }
 
+// OrderByAsc is an option for NewPaginator that allows you to add a custom specific
+// sql ascending ORDER BY clause. This is useful when, for example, you want to have control
+// on the sorting from the backend. Trying to sort by the "id" defined in the given table
+// (through the tag "id") will not work, since Paginator will always sort the results in
+// a deterministic way, so it will not consider the given "id" for sorting.
 func OrderByAsc(column string) Option {
 	return func(p *paginator) error {
 		p.orderByClauses = append(p.orderByClauses, orderByClause{
@@ -51,6 +56,11 @@ func OrderByAsc(column string) Option {
 	}
 }
 
+// OrderByDesc is an option for NewPaginator that allows you to add a custom specific
+// sql descending ORDER BY clause. This is useful when, for example, you want to have control
+// on the sorting from the backend. Trying to sort by the "id" defined in the given table
+// (through the tag "id") will not work, since Paginator will always sort the results in
+// a deterministic way, so it will not consider te given "id" for sorting.
 func OrderByDesc(column string) Option {
 	return func(p *paginator) error {
 		p.orderByClauses = append(p.orderByClauses, orderByClause{
