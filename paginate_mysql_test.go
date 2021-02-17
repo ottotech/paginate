@@ -1023,3 +1023,131 @@ func TestNewPaginatorMysql_RequestParameter_MultipleNotEqual_NOT_IN_Clause(t *te
 		}
 	}
 }
+
+func TestNewPaginatorMysql_RequestParameter_Raw_Sql_LIKE_Clause(t *testing.T) {
+	type Employee struct {
+		ID           int         `paginate:"id;col=id"`
+		Name         string      `paginate:"col=name"`
+		LastName     string      `paginate:"col=last_name"`
+		WorkerNumber NullInt     `paginate:"col=worker_number"`
+		DateJoined   time.Time   `paginate:"col=date_joined"`
+		Salary       float64     `paginate:"col=salary"`
+		NullText     NullString  `paginate:"col=null_text"`
+		NullVarchar  NullString  `paginate:"col=null_varchar"`
+		NullBool     NullBool    `paginate:"col=null_bool"`
+		NullDate     NullTime    `paginate:"col=null_date"`
+		NullInt      NullInt     `paginate:"col=null_int"`
+		NullFloat    NullFloat64 `paginate:"col=null_float"`
+	}
+
+	u, err := url.Parse("http://localhost")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawSql, err := NewRawWhereClause("mysql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawSql.AddPredicate("name LIKE ? OR last_name LIKE ?")
+	rawSql.AddArg("%ringo%")
+	rawSql.AddArg("%smith%")
+
+	pag, err := NewPaginator(Employee{}, "mysql", *u, TableName("employees"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = pag.AddWhereClause(rawSql)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := mysqlTestDB.Query(cmd, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	if len(results) != 6 {
+		t.Errorf("we should have 6 records in result; got %d", len(results))
+	}
+
+	expectedResults := []struct {
+		Name, LastName string
+		WorkNumber     int
+		Salary         float64
+	}{
+		{
+			Name:       "Ringo",
+			LastName:   "Star",
+			WorkNumber: 1,
+			Salary:     5400,
+		}, {
+			Name:       "Mark",
+			LastName:   "Smith",
+			WorkNumber: 3,
+			Salary:     8000,
+		}, {
+			Name:       "John",
+			LastName:   "Smith",
+			WorkNumber: 4,
+			Salary:     4650.90,
+		}, {
+			Name:       "Fred",
+			LastName:   "Smith",
+			WorkNumber: 5,
+			Salary:     7550,
+		}, {
+			Name:       "Erika",
+			LastName:   "Smith",
+			WorkNumber: 8,
+			Salary:     4455,
+		}, {
+			Name:       "Rafael",
+			LastName:   "Smith",
+			WorkNumber: 10,
+			Salary:     7550,
+		},
+	}
+
+	for _, e := range expectedResults {
+		isThere := false
+		for _, r := range results {
+			if r.Name == e.Name && r.LastName == e.LastName && r.WorkerNumber.Int == e.WorkNumber && r.Salary == e.Salary {
+				isThere = true
+				break
+			}
+		}
+		if !isThere {
+			t.Errorf("expected (%+v) in results", e)
+		}
+	}
+}

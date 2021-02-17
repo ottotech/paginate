@@ -689,6 +689,10 @@ func (p *paginator) AddWhereClause(clause RawWhereClause) error {
 		return fmt.Errorf("paginate: the number of placeholders and arguments in the where clause should be the same")
 	}
 
+	if err := dialectPlaceholder.CheckIfDialectIsSupported(clause.dialect); err != nil {
+		return fmt.Errorf("the dialect specified in the RawWhereClause is not supported")
+	}
+
 	p.predicates = append(p.predicates, clause)
 	return nil
 }
