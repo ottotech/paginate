@@ -3,6 +3,7 @@ package paginate
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/url"
 	"testing"
 	"time"
@@ -1588,4 +1589,41 @@ func TestNewPaginatorMysql_With_Custom_OrderByDesc_Clauses(t *testing.T) {
 			t.Errorf("expected (%+v) in results (%+v)", e, results)
 		}
 	}
+}
+
+func ExampleTest_NewPaginatorMysql_With_Custom_OrderByDesc_Clause_With_ID() {
+	type Employee struct {
+		ID           int         `paginate:"id;col=id"`
+		Name         string      `paginate:"col=name"`
+		LastName     string      `paginate:"col=last_name"`
+		WorkerNumber NullInt     `paginate:"col=worker_number"`
+		DateJoined   time.Time   `paginate:"col=date_joined"`
+		Salary       float64     `paginate:"col=salary"`
+		NullText     NullString  `paginate:"col=null_text"`
+		NullVarchar  NullString  `paginate:"col=null_varchar"`
+		NullBool     NullBool    `paginate:"col=null_bool"`
+		NullDate     NullTime    `paginate:"col=null_date"`
+		NullInt      NullInt     `paginate:"col=null_int"`
+		NullFloat    NullFloat64 `paginate:"col=null_float"`
+	}
+
+	u, err := url.Parse("http://localhost?sort=-id")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "mysql", *u, TableName("employees"), OrderByDesc("id"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	cmd, args, err := pag.Paginate()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(cmd)
+	fmt.Printf("args length: %v\n", len(args))
+	// Output:
+	// SELECT id, name, last_name, worker_number, date_joined, salary, null_text, null_varchar, null_bool, null_date, null_int, null_float, count(*) over() FROM employees ORDER BY id LIMIT 30 OFFSET 0
+	// args length: 0
 }

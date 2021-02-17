@@ -313,7 +313,7 @@ func createPaginationClause(pageNumber int, pageSize int, c chan string) {
 	c <- clause
 }
 
-func createOrderByClause(params parameters, colNames []string, customOrderByClauses orderBy, id string, c chan string) {
+func createOrderByClause(params parameters, colNames []string, customOrderByClauses customOrderByClauses, id string, c chan string) {
 	var ASC = "ASC"
 	var DESC = "DESC"
 
@@ -345,13 +345,10 @@ func createOrderByClause(params parameters, colNames []string, customOrderByClau
 		}
 	}
 
-	// As an special case if there are custom "ORDER BY" clauses that are not already
-	// in "clauses", we will add them to make the sorting correctly.
+	// As an special case if there are custom "ORDER BY" clauses
+	// we will add them to make the sorting correctly.
 	for _, customOrderBy := range customOrderByClauses {
-		in := isStringIn(customOrderBy, clauses)
-		if !in {
-			clauses = append(clauses, customOrderBy)
-		}
+		clauses = append(clauses, customOrderBy.String())
 	}
 
 	clauses = append(clauses, id)

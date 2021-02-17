@@ -104,21 +104,26 @@ var dialectPlaceholder = __dialectPlaceholder{
 	"postgres": "$%v", // This can become later in $1 see: Paginate() implementation for more.
 }
 
-type orderBy []string
+type customOrderByClauses []orderByClause
 
-func (o *orderBy) UniqueValues(skipId string) {
-	unique := make([]string, 0)
-	for _, s := range *o {
-		if s == skipId {
+type orderByClause struct {
+	column, sorting string
+}
+
+func (o orderByClause) String() string {
+	return fmt.Sprintf("%s %s", o.column, o.sorting)
+}
+
+func (clauses *customOrderByClauses) Clean(skipId string) {
+	cleaned := make([]orderByClause, 0)
+	for _, c := range *clauses {
+		if c.column == skipId {
 			continue
 		}
-		in := isStringIn(s, unique)
-		if !in {
-			unique = append(unique, s)
-		}
+		cleaned = append(cleaned, c)
 	}
-	*o = nil
-	for _, x := range unique {
-		*o = append(*o, x)
+	*clauses = nil
+	for _, x := range cleaned {
+		*clauses = append(*clauses, x)
 	}
 }

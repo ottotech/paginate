@@ -204,9 +204,9 @@ type paginator struct {
 	// this information to do subsequent pagination calls.
 	response PaginationResponse
 
-	// orderBy holds custom "ORDER BY" clauses that will be added to the generated
+	// orderByClauses holds custom "ORDER BY" clauses that will be added to the generated
 	// sql command. See createOrderByClause.
-	orderBy orderBy
+	orderByClauses customOrderByClauses
 }
 
 func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
@@ -216,7 +216,7 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 	c3 := make(chan string)
 	go createWhereClause(p.dialect, p.cols, p.parameters, p.predicates, c1)
 	go createPaginationClause(p.pageNumber, p.pageSize, c2)
-	go createOrderByClause(p.parameters, p.cols, p.orderBy, p.id, c3)
+	go createOrderByClause(p.parameters, p.cols, p.orderByClauses, p.id, c3)
 	where := <-c1
 	pagination := <-c2
 	order := <-c3

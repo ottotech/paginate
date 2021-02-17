@@ -43,14 +43,20 @@ func PageSize(size uint) Option {
 
 func OrderByAsc(column string) Option {
 	return func(p *paginator) error {
-		p.orderBy = append(p.orderBy, fmt.Sprintf("%s %s", column, "ASC"))
+		p.orderByClauses = append(p.orderByClauses, orderByClause{
+			column:  column,
+			sorting: "ASC",
+		})
 		return nil
 	}
 }
 
 func OrderByDesc(column string) Option {
 	return func(p *paginator) error {
-		p.orderBy = append(p.orderBy, fmt.Sprintf("%s %s", column, "DESC"))
+		p.orderByClauses = append(p.orderByClauses, orderByClause{
+			column:  column,
+			sorting: "DESC",
+		})
 		return nil
 	}
 }
@@ -115,8 +121,8 @@ func NewPaginator(table interface{}, dialect string, u url.URL, opts ...Option) 
 	p.getFilters()
 	p.parameters = getParameters(p.cols, p.filters, p.mappers, u)
 
-	// Let's clean our orderBy slice and get unique values.
-	p.orderBy.UniqueValues(p.id)
+	// Let's clean our orderBy orderByClauses.
+	p.orderByClauses.Clean(p.id)
 
 	return p, nil
 }
