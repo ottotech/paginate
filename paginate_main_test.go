@@ -19,10 +19,11 @@ var (
 // variables that represent the uris to connect to the psql and mysql testing databases.
 var (
 	mysqlDatabaseUri = "root:secret@tcp(localhost:3306)/%s?multiStatements=true&parseTime=true"
+	//psqlDatabaseUri  = "user=root password=secret host=localhost port=5432 dbname=%s sslmode=disable"
 )
 
 func createMysqlDatabaseAndTestingTable() error {
-	defaultDB, err := sql.Open("mysql", fmt.Sprintf(mysqlDatabaseUri, "test"))
+	defaultDB, err := sql.Open("mysql", fmt.Sprintf(mysqlDatabaseUri, "mysql"))
 	if err != nil {
 		return err
 	}
@@ -194,7 +195,7 @@ func addDataToDatabaseTable(db *sql.DB) error {
 }
 
 func removeMysqlDatabase() error {
-	db, err := sql.Open("mysql", fmt.Sprintf(mysqlDatabaseUri, "test"))
+	db, err := sql.Open("mysql", fmt.Sprintf(mysqlDatabaseUri, "mysql"))
 	if err != nil {
 		return err
 	}
