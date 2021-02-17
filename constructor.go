@@ -41,17 +41,55 @@ func PageSize(size uint) Option {
 	}
 }
 
+// OrderByAsc is an option for NewPaginator that allows you to add a custom specific
+// sql ascending ORDER BY clause. This is useful when, for example, you want to have control
+// on the sorting from the backend. Trying to sort by the "id" defined in the given table
+// (through the tag "id") will not work, since Paginator will always sort the results in
+// a deterministic way, so it will not consider the given "id" for sorting.
+func OrderByAsc(column string) Option {
+	return func(p *paginator) error {
+		p.orderByClauses = append(p.orderByClauses, orderByClause{
+			column:  column,
+			sorting: "ASC",
+		})
+		return nil
+	}
+}
+
+// OrderByDesc is an option for NewPaginator that allows you to add a custom specific
+// sql descending ORDER BY clause. This is useful when, for example, you want to have control
+// on the sorting from the backend. Trying to sort by the "id" defined in the given table
+// (through the tag "id") will not work, since Paginator will always sort the results in
+// a deterministic way, so it will not consider te given "id" for sorting.
+func OrderByDesc(column string) Option {
+	return func(p *paginator) error {
+		p.orderByClauses = append(p.orderByClauses, orderByClause{
+			column:  column,
+			sorting: "DESC",
+		})
+		return nil
+	}
+}
+
 // NewPaginator creates a Paginator object ready to paginate data from a database table.
 //
-// See TableName and PageSize options for NewPaginator.
+// The table parameter should be a struct object with fields representing the target
+// database table you want to paginate. The dialect parameter should be a string
+// representing the sql dialect you are using "postgres" or "mysql", for example.
+// For available options you can pass to Paginator check: TableName and PageSize.
 //
 // When the PageSize option is not given paginator will try to get the page size from the
 // request parameter ``page_size``. If there is no ``page_size`` parameter NewPaginator
 // will set the Paginator with the default page size which is 30. When the TableName option
 // is not given, NewPaginator will infer the database table name from the table argument
 // given, so it will extract the name from the struct variable.
-func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, error) {
-	p := &paginator{table: table, rv: reflect.ValueOf(table)}
+func NewPaginator(table interface{}, dialect string, u url.URL, opts ...Option) (Paginator, error) {
+	err := dialectPlaceholder.CheckIfDialectIsSupported(dialect)
+	if err != nil {
+		return nil, err
+	}
+
+	p := &paginator{table: table, rv: reflect.ValueOf(table), dialect: dialect}
 
 	// Let's try to set the options if any.
 	for _, opt := range opts {
@@ -92,5 +130,9 @@ func NewPaginator(table interface{}, u url.URL, opts ...Option) (Paginator, erro
 	p.getFieldNames()
 	p.getFilters()
 	p.parameters = getParameters(p.cols, p.filters, p.mappers, u)
+
+	// Let's clean our orderByClauses slice.
+	p.orderByClauses.Clean(p.id)
+
 	return p, nil
 }

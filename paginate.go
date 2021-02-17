@@ -99,6 +99,10 @@ type Paginator interface {
 
 // paginator is the concrete type that implements the Paginator interface.
 type paginator struct {
+	// dialect represents the sql dialect that paginator will use to build
+	// the sql command.
+	dialect string
+
 	// table is a representation of a database table and its columns. The
 	// given table should be of type struct and its fields represent the
 	// columns of the table in the database.
@@ -199,6 +203,10 @@ type paginator struct {
 	// response holds useful information about the pagination operation. Clients can use
 	// this information to do subsequent pagination calls.
 	response PaginationResponse
+
+	// orderByClauses holds custom "ORDER BY" clauses that will be added to the generated
+	// sql command. See createOrderByClause.
+	orderByClauses customOrderByClauses
 }
 
 func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
@@ -206,22 +214,26 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 	c1 := make(chan whereClause)
 	c2 := make(chan string)
 	c3 := make(chan string)
-	go createWhereClause(p.cols, p.parameters, p.predicates, c1)
+	go createWhereClause(p.dialect, p.cols, p.parameters, p.predicates, c1)
 	go createPaginationClause(p.pageNumber, p.pageSize, c2)
-	go createOrderByClause(p.parameters, p.cols, p.id, c3)
+	go createOrderByClause(p.parameters, p.cols, p.orderByClauses, p.id, c3)
 	where := <-c1
 	pagination := <-c2
 	order := <-c3
 
-	numArgs := len(where.args)
-	placeholders := make([]interface{}, 0)
-	for i := 1; i < numArgs+1; i++ {
-		placeholders = append(placeholders, i)
-	}
-
 	if where.exists {
 		s = "SELECT " + strings.Join(p.cols, ", ") + ", count(*) over() FROM " + p.name + where.clause + order + pagination
-		s = fmt.Sprintf(s, placeholders...)
+		// As an special case we need to enumerate the placeholders if users are using
+		// postgres. See, for example, the documentation of this postgres driver library:
+		// https://pkg.go.dev/github.com/lib/pq#section-documentation
+		if p.dialect == "postgres" {
+			numArgs := len(where.args)
+			placeholders := make([]interface{}, 0)
+			for i := 1; i < numArgs+1; i++ {
+				placeholders = append(placeholders, i)
+			}
+			s = fmt.Sprintf(s, placeholders...)
+		}
 	} else {
 		s = "SELECT " + strings.Join(p.cols, ", ") + ", count(*) over() FROM " + p.name + order + pagination
 	}
@@ -681,6 +693,10 @@ func (p *paginator) AddWhereClause(clause RawWhereClause) error {
 	}
 	if len(occurrences) > 0 && len(occurrences) != len(clause.args) {
 		return fmt.Errorf("paginate: the number of placeholders and arguments in the where clause should be the same")
+	}
+
+	if err := dialectPlaceholder.CheckIfDialectIsSupported(clause.dialect); err != nil {
+		return fmt.Errorf("the dialect specified in the RawWhereClause is not supported")
 	}
 
 	p.predicates = append(p.predicates, clause)

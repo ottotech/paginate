@@ -1,5 +1,7 @@
 package paginate
 
+import "fmt"
+
 type parameters []parameter
 
 func (params *parameters) getParameter(name string) (parameter, bool) {
@@ -80,4 +82,48 @@ func (m *mappers) Add(col, param string) {
 		col:   col,
 		param: param,
 	})
+}
+
+type __dialectPlaceholder map[string]string
+
+func (d __dialectPlaceholder) GetPlaceHolder(dialect string) string {
+	return d[dialect]
+}
+
+func (d __dialectPlaceholder) CheckIfDialectIsSupported(dialect string) error {
+	for k, _ := range d {
+		if k == dialect {
+			return nil
+		}
+	}
+	return fmt.Errorf("paginate: given dialect %q is not supported by this package", dialect)
+}
+
+var dialectPlaceholder = __dialectPlaceholder{
+	"mysql":    "?",
+	"postgres": "$%v", // This can become later in $1 see: Paginate() implementation for more.
+}
+
+type customOrderByClauses []orderByClause
+
+type orderByClause struct {
+	column, sorting string
+}
+
+func (o orderByClause) String() string {
+	return fmt.Sprintf("%s %s", o.column, o.sorting)
+}
+
+func (clauses *customOrderByClauses) Clean(skipId string) {
+	cleaned := make([]orderByClause, 0)
+	for _, c := range *clauses {
+		if c.column == skipId {
+			continue
+		}
+		cleaned = append(cleaned, c)
+	}
+	*clauses = nil
+	for _, x := range cleaned {
+		*clauses = append(*clauses, x)
+	}
 }

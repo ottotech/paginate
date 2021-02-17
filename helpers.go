@@ -239,7 +239,7 @@ func getRequestData(v url.Values) paginationRequest {
 	return p
 }
 
-func createWhereClause(colNames []string, params parameters, extraWhereClauses []RawWhereClause, c chan whereClause) {
+func createWhereClause(dialect string, colNames []string, params parameters, extraWhereClauses []RawWhereClause, c chan whereClause) {
 	w := whereClause{}
 	var WHERE = " WHERE "
 	var AND = " AND "
@@ -256,7 +256,7 @@ func createWhereClause(colNames []string, params parameters, extraWhereClauses [
 					for _, v := range vals {
 						values = append(values, v)
 					}
-					placeholder := "$%v"
+					placeholder := dialectPlaceholder.GetPlaceHolder(dialect)
 					str := ""
 					for i := 0; i < len(vals); i++ {
 						if i == len(vals)-1 {
@@ -268,7 +268,10 @@ func createWhereClause(colNames []string, params parameters, extraWhereClauses [
 					clauses = append(clauses, p.name+" "+p.sign+fmt.Sprintf("(%s)", str))
 				default:
 					values = append(values, p.value)
-					clauses = append(clauses, p.name+" "+p.sign+" $%v")
+					clauses = append(
+						clauses,
+						fmt.Sprintf("%s %s %s", p.name, p.sign, dialectPlaceholder.GetPlaceHolder(dialect)),
+					)
 				}
 			}
 		}
@@ -310,38 +313,42 @@ func createPaginationClause(pageNumber int, pageSize int, c chan string) {
 	c <- clause
 }
 
-func createOrderByClause(params parameters, colNames []string, id string, c chan string) {
+func createOrderByClause(params parameters, colNames []string, customOrderByClauses customOrderByClauses, id string, c chan string) {
 	var ASC = "ASC"
 	var DESC = "DESC"
 
 	clauses := make([]string, 0)
 
-	sort, exists := params.getParameter("sort")
-	if !exists {
-		c <- fmt.Sprintf(" ORDER BY %s", id)
-		return
-	}
+	sort, sortParamExists := params.getParameter("sort")
 
-	fields := strings.Split(sort.value, ",")
-	for _, v := range fields {
-		orderBy := string(v[0])
-		field := v[1:]
-		for _, f := range colNames {
-			if f == id {
-				// we will always order the records by ID (see below). In order
-				// to keep the same order between pages or results deterministic.
-				// See: https://use-the-index-luke.com/sql/partial-results/fetch-next-page
-				continue
-			}
-			if field == f {
-				if orderBy == "+" {
-					clauses = append(clauses, field+" "+ASC)
+	if sortParamExists {
+		fields := strings.Split(sort.value, ",")
+		for _, v := range fields {
+			AscOrDesc := string(v[0])
+			field := v[1:]
+			for _, f := range colNames {
+				if f == id {
+					// we will always order the records by ID (see below). In order
+					// to keep the same order between pages or results deterministic.
+					// See: https://use-the-index-luke.com/sql/partial-results/fetch-next-page
+					continue
 				}
-				if orderBy == "-" {
-					clauses = append(clauses, field+" "+DESC)
+				if field == f {
+					if AscOrDesc == "+" {
+						clauses = append(clauses, field+" "+ASC)
+					}
+					if AscOrDesc == "-" {
+						clauses = append(clauses, field+" "+DESC)
+					}
 				}
 			}
 		}
+	}
+
+	// As an special case if there are custom "ORDER BY" clauses
+	// we will add them to make the sorting correctly.
+	for _, customOrderBy := range customOrderByClauses {
+		clauses = append(clauses, customOrderBy.String())
 	}
 
 	clauses = append(clauses, id)
