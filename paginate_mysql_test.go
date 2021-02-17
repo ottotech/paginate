@@ -1151,3 +1151,78 @@ func TestNewPaginatorMysql_RequestParameter_Raw_Sql_LIKE_Clause(t *testing.T) {
 		}
 	}
 }
+
+func TestNewPaginatorMysql_RequestParameter_Raw_Sql_IS_NULL_Clause(t *testing.T) {
+	type Employee struct {
+		ID           int         `paginate:"id;col=id"`
+		Name         string      `paginate:"col=name"`
+		LastName     string      `paginate:"col=last_name"`
+		WorkerNumber NullInt     `paginate:"col=worker_number"`
+		DateJoined   time.Time   `paginate:"col=date_joined"`
+		Salary       float64     `paginate:"col=salary"`
+		NullText     NullString  `paginate:"col=null_text"`
+		NullVarchar  NullString  `paginate:"col=null_varchar"`
+		NullBool     NullBool    `paginate:"col=null_bool"`
+		NullDate     NullTime    `paginate:"col=null_date"`
+		NullInt      NullInt     `paginate:"col=null_int"`
+		NullFloat    NullFloat64 `paginate:"col=null_float"`
+	}
+
+	u, err := url.Parse("http://localhost")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawSql, err := NewRawWhereClause("mysql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawSql.AddPredicate("null_float IS NULL")
+
+	pag, err := NewPaginator(Employee{}, "mysql", *u, TableName("employees"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = pag.AddWhereClause(rawSql)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := mysqlTestDB.Query(cmd, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	if len(results) != 10 {
+		t.Errorf("we should have 10 records in result; got %d", len(results))
+	}
+}
