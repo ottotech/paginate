@@ -5,6 +5,30 @@ import (
 	"strings"
 )
 
+// NewRawWhereClause will give you a validated instance of a RawWhereClause object.
+//
+// Use this constructor whenever you want to create a custom sql
+// "where" clause that Paginator can use to paginate your table
+// accordingly.
+//
+// Example of how to use the returned RawWhereClause:
+//
+//  ...
+//  paginator, _ := NewPaginator(MyTable{}, "mysql", *url)
+//  rawWhereSql, err := NewRawWhereClause("mysql")
+//  if err != nil {
+//  	t.Fatal(err)
+//  }
+//
+//  rawWhereSql.AddPredicate("name LIKE ? OR last_name LIKE ?")
+//  rawWhereSql.AddArg("%ringo%")
+//  rawWhereSql.AddArg("%smith%")
+//
+//  err = paginator.AddWhereClause(rawWhereSql)
+//  if err != nil {
+//     // Handle error gracefully.
+//  }
+//
 func NewRawWhereClause(dialect string) (RawWhereClause, error) {
 	if err := dialectPlaceholder.CheckIfDialectIsSupported(dialect); err != nil {
 		return RawWhereClause{}, err

@@ -1317,7 +1317,6 @@ func TestNewPaginatorMysql_RequestParameter_Sort_ASC(t *testing.T) {
 	}
 }
 
-
 func TestNewPaginatorMysql_RequestParameter_Sort_DESC(t *testing.T) {
 	type Employee struct {
 		ID           int         `paginate:"id;col=id"`
