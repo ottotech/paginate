@@ -1440,8 +1440,6 @@ func TestNewPaginatorMysql_With_Custom_OrderByAsc_Clauses(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println(cmd, args)
-
 	rows, err := mysqlTestDB.Query(cmd, args...)
 	if err != nil {
 		t.Fatal(err)

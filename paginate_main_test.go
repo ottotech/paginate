@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	"log"
 	"os"
 	"testing"
@@ -14,12 +15,13 @@ import (
 // variables that hold the global access to the psql and mysql testing databases.
 var (
 	mysqlTestDB *sql.DB
+	psqlTestDB  *sql.DB
 )
 
 // variables that represent the uris to connect to the psql and mysql testing databases.
 var (
 	mysqlDatabaseUri = "root:secret@tcp(localhost:3306)/%s?multiStatements=true&parseTime=true"
-	//psqlDatabaseUri  = "user=root password=secret host=localhost port=5432 dbname=%s sslmode=disable"
+	psqlDatabaseUri  = "user=postgres password=secret host=localhost port=5432 dbname=%s sslmode=disable"
 )
 
 func createMysqlDatabaseAndTestingTable() error {
@@ -83,7 +85,74 @@ CREATE TABLE employees
 	return nil
 }
 
-func addDataToDatabaseTable(db *sql.DB) error {
+func createPsqlDatabaseAndTestingTable() error {
+	defaultDB, err := sql.Open("postgres", fmt.Sprintf(psqlDatabaseUri, "postgres"))
+	if err != nil {
+		return err
+	}
+	_, err = defaultDB.Exec("CREATE DATABASE paginate_test;")
+	if err != nil {
+		return err
+	}
+	defaultDB.Close()
+
+	db, err := sql.Open("postgres", fmt.Sprintf(psqlDatabaseUri, "paginate_test"))
+	if err != nil {
+		return err
+	}
+	psqlTestDB = db
+
+	createTableQuery := `
+create table employees
+(
+   id            serial       not null
+       constraint employees_pk
+           primary key,
+   name          varchar(200) not null,
+   last_name     varchar(200) not null,
+   worker_number integer      not null,
+   date_joined   timestamp with time zone,
+   salary        double precision,
+   null_text     text,
+   null_varchar  varchar(100),
+   null_bool     boolean,
+   null_date     timestamp with time zone,
+   null_int      integer,
+   null_float    double precision
+);
+
+create unique index employees_id_uindex
+   on employees (id);
+
+create unique index employees_worker_number_uindex
+   on employees (worker_number);
+`
+
+	ctx := context.Background()
+	tx, err := psqlTestDB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+
+	for _, q := range []string{createTableQuery} {
+		_, err = tx.Exec(q)
+
+		if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				return err
+			}
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addDataToDatabaseTable(db *sql.DB, dialect string) error {
 	type employee struct {
 		Name, LastName string
 		WorkNumber     int
@@ -173,9 +242,17 @@ func addDataToDatabaseTable(db *sql.DB) error {
 		return err
 	}
 
-	sqlStatement := `
-	INSERT INTO employees (name, last_name, worker_number, date_joined, salary, null_bool)
-	VALUES (?, ?, ?, ?, ?, ?)`
+	var sqlStatement string
+
+	if dialect == "mysql" {
+		sqlStatement = `
+		INSERT INTO employees (name, last_name, worker_number, date_joined, salary, null_bool)
+		VALUES (?, ?, ?, ?, ?, ?)`
+	} else if dialect == "postgres" {
+		sqlStatement = `
+		INSERT INTO employees (name, last_name, worker_number, date_joined, salary, null_bool)
+		VALUES ($1, $2, $3, $4, $5, $6)`
+	}
 
 	for _, e := range employees {
 		_, err := tx.Exec(sqlStatement, e.Name, e.LastName, e.WorkNumber, e.DateJoined, e.Salary, e.NullBool)
@@ -208,6 +285,20 @@ func removeMysqlDatabase() error {
 	return nil
 }
 
+func removePsqlDatabase() error {
+	db, err := sql.Open("postgres", fmt.Sprintf(psqlDatabaseUri, "postgres"))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec(fmt.Sprintf("DROP DATABASE %s;", "paginate_test"))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func TestMain(m *testing.M) {
 	var err error
 	err = createMysqlDatabaseAndTestingTable()
@@ -216,20 +307,38 @@ func TestMain(m *testing.M) {
 		log.Fatalln(err)
 	}
 
-	err = addDataToDatabaseTable(mysqlTestDB)
+	err = addDataToDatabaseTable(mysqlTestDB, "mysql")
 	if err != nil {
 		removeMysqlDatabase()
 		log.Fatalln(err)
 	}
 
+	err = createPsqlDatabaseAndTestingTable()
+	if err != nil {
+		removePsqlDatabase()
+		log.Fatalln(err)
+	}
+
+	err = addDataToDatabaseTable(psqlTestDB, "postgres")
+	if err != nil {
+		removePsqlDatabase()
+		log.Fatalln(err)
+	}
+
 	code := m.Run()
+
+	mysqlTestDB.Close()
+	psqlTestDB.Close()
+
+	err = removePsqlDatabase()
+	if err != nil {
+		log.Println(err)
+	}
 
 	err = removeMysqlDatabase()
 	if err != nil {
 		log.Println(err)
 	}
-
-	mysqlTestDB.Close()
 
 	os.Exit(code)
 }
