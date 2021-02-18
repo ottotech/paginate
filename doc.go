@@ -90,9 +90,5 @@ Paginator does not take into consideration performance since it uses the OFFSET 
 which reads and counts all rows from the beginning until it reaches the requested page. For
 not too big datasets Paginator will just work fine. If you care about performance because you
 are dealing with heavy data you might want to write a custom solution for that.
-
-USAGE EXAMPLES:
-
-Check the examples folder in the repository of the package to learn more about how use paginate.
 */
 package paginate
