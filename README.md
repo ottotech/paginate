@@ -1,8 +1,6 @@
-paginate 
+# paginate 
 [![Build Status](https://travis-ci.org/ottotech/paginate.svg?branch=master)](https://travis-ci.org/ottotech/paginate)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
-
-=========
 
 ## Overview
 
