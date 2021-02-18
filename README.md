@@ -58,7 +58,7 @@ func main() {
         // Handle error gracefully...
     }
     
-    paginator, err := paginate.NewPaginator(Employee{}, "mysql", *u, paginate.TableName("employees"))
+    paginator, err := paginate.NewPaginator(Employee{}, "postgres", *u, paginate.TableName("employees"))
     if err != nil {
         // Handle error gracefully...
     }
