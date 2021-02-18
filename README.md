@@ -25,12 +25,12 @@ import (
 )
 
 type Employee struct {
-	ID           int                  `paginate:"id;col=id"`
-	Name         string               `paginate:"col=name"`
-	LastName     string               `paginate:"col=last_name"`
+	ID           int                  `paginate:"id;col=id;param=employee_id"`
+	Name         string               `paginate:"filter;col=name"`
+	LastName     string               `paginate:"filter;col=last_name"`
 	WorkerNumber paginate.NullInt     `paginate:"col=worker_number"`
 	DateJoined   time.Time            `paginate:"col=date_joined"`
-	Salary       float64              `paginate:"col=salary"`
+	Salary       float64              `paginate:"filter;col=salary"`
 	NullText     paginate.NullString  `paginate:"col=null_text"`
 	NullVarchar  paginate.NullString  `paginate:"col=null_varchar"`
 	NullBool     paginate.NullBool    `paginate:"col=null_bool"`
