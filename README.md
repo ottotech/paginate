@@ -40,22 +40,22 @@ type Employee struct {
 }
 
 func main() {
-	dbUri := "user=root password=secret host=localhost " +
-		"port=5432 dbname=events_db sslmode=disable"
-
-	db, err := sql.Open("postgres", dbUri)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = db.Ping(); err != nil {
-		panic(err)
-	}
-	fmt.Println("You connected to your database.")
+    dbUri := "user=root password=secret host=localhost " +
+        "port=5432 dbname=events_db sslmode=disable"
+    
+    db, err := sql.Open("postgres", dbUri)
+    if err != nil {
+        panic(err)
+    }
+    
+    if err = db.Ping(); err != nil {
+        panic(err)
+    }
+    fmt.Println("You connected to your database.")
     
     u, err := url.Parse("http://localhost?name=Ringo")
     if err != nil {
-		// Handle error gracefully...
+        // Handle error gracefully...
     }
     
     paginator, err := paginate.NewPaginator(Employee{}, "mysql", *u, paginate.TableName("employees"))
@@ -65,25 +65,25 @@ func main() {
     
     cmd, args, err := paginator.Paginate()
     if err != nil {
-		// Handle error gracefully...
+        // Handle error gracefully...
     }
     
     rows, err := db.Query(cmd, args...)
     if err != nil {
-		// Handle error gracefully...
+        // Handle error gracefully...
     }
     defer rows.Close()
     
     for rows.Next() {
-    err = rows.Scan(paginator.GetRowPtrArgs()...)
-    if err != nil {
-		// Handle error gracefully...
-    }
+        err = rows.Scan(paginator.GetRowPtrArgs()...)
+        if err != nil {
+            // Handle error gracefully...
+        }
     }
     
     if err = rows.Err(); err != nil {
-		// Handle error gracefully...
-	}
+        // Handle error gracefully...
+    }
     
     results := make([]Employee, 0)
     
@@ -95,17 +95,17 @@ func main() {
         }
         results = append(results, employee)
     }
-	
+    
     // You should be able to see the paginated data inside results. 
-	fmt.Println(results)
-
-	// You should be able to serialize into json the paginated data.
-	sb, err := json.Marshal(results)
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-	fmt.Println(sb)
+    fmt.Println(results)
+    
+    // You should be able to serialize into json the paginated data.
+    sb, err := json.Marshal(results)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    fmt.Println(sb)
 }
 ```
 
