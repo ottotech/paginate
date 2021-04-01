@@ -1625,3 +1625,155 @@ func ExampleTest_NewPaginatorPsql_With_Custom_OrderByDesc_Clause_With_ID() {
 	// SELECT id, name, last_name, worker_number, date_joined, salary, null_text, null_varchar, null_bool, null_date, null_int, null_float, count(*) over() FROM employees ORDER BY id LIMIT 30 OFFSET 0
 	// args length: 0
 }
+
+func Test_InnerJoin_Sql_Query_String_HappyPath(t *testing.T) {
+	type Employee struct {
+		ID       int    `paginate:"id;col=id"`
+		Name     string `paginate:"col=name"`
+		LastName string `paginate:"col=last_name"`
+	}
+
+	u, err := url.Parse("http://localhost?sort=-id")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "postgres", *u, TableName("employees"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	rawSql, err := NewRawWhereClause("postgres")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawSql.AddPredicate("name ILIKE ?")
+	rawSql.AddArg("%ringo%")
+
+	err = pag.AddWhereClause(rawSql)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerClause, err := NewInnerJoinClause("postgres")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerClause.On("id", "managers", "employee_id")
+
+	err = pag.AddJoinClause(innerClause)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sql, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedSql := "SELECT id, name, last_name, count(*) over() FROM employees JOIN managers ON employees.id = managers.employee_id WHERE name ILIKE $1 ORDER BY id LIMIT 30 OFFSET 0"
+	expectedArg := "%ringo%"
+
+	if sql != expectedSql {
+		t.Errorf("expected sql %q; got %q instead", expectedSql, sql)
+	}
+
+	if args[0] != expectedArg {
+		t.Errorf("expected arg %q; got %q instead", expectedArg, args[0])
+	}
+}
+
+func Test_InnerJoin_Psql_Employees_That_Are_Managers(t *testing.T) {
+	type Employee struct {
+		ID         int       `paginate:"id;col=id"`
+		Name       string    `paginate:"col=name"`
+		LastName   string    `paginate:"col=last_name"`
+		WorkNumber int64     `paginate:"col=worker_number"`
+		DateJoined time.Time `paginate:"col=date_joined"`
+		Salary     int64     `paginate:"col=salary"`
+	}
+
+	u, err := url.Parse("http://localhost")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "postgres", *u, TableName("employees"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	innerClause, err := NewInnerJoinClause("postgres")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerClause.On("id", "manager", "employee_id")
+
+	err = pag.AddJoinClause(innerClause)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sql, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := psqlTestDB.Query(sql, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	managers := employees[5:]
+
+	if len(results) != len(managers) {
+		t.Errorf("expected to have %[1]d results since there are %[1]d managers.", len(managers))
+	}
+
+	for i := 0; i < len(results); i++ {
+		expectedManager := managers[i]
+		resultManager := results[i]
+
+		if expectedManager.Name != resultManager.Name {
+			t.Errorf("expected manager name to be %s; got %s", expectedManager.Name, resultManager.Name)
+		}
+		if expectedManager.LastName != resultManager.LastName {
+			t.Errorf("expected manager last name to be %s; got %s", expectedManager.LastName, resultManager.LastName)
+		}
+		if int64(expectedManager.Salary) != resultManager.Salary {
+			t.Errorf("expected manager salary to be %d; got %d", int64(expectedManager.Salary), resultManager.Salary)
+		}
+		if expectedManager.DateJoined.Format("02-01-2006") != resultManager.DateJoined.Format("02-01-2006") {
+			t.Errorf("expected manager date joined to be %s; got %s", expectedManager.DateJoined.Format("02-01-2006"), resultManager.DateJoined.Format("02-01-2006"))
+		}
+		if expectedManager.WorkNumber != int(resultManager.WorkNumber) {
+			t.Errorf("expected manager worker number to be %d; got %d", expectedManager.WorkNumber, resultManager.WorkNumber)
+		}
+	}
+}
