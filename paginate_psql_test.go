@@ -1777,3 +1777,114 @@ func Test_InnerJoin_Psql_Employees_That_Are_Managers(t *testing.T) {
 		}
 	}
 }
+
+func Test_InnerJoin_Psql_Employees_That_Are_Go_Developers(t *testing.T) {
+	// ProgrammingLanguage it is a column from the joined table.
+	// In this test we are able to prove that it is possible to filter
+	// joined columns. However, when there are clashes with the columns names
+	// between two or more joined tables to get the correct name of the columns
+	// it's a bit hard. I need to think more about how to smooth this problem.
+	type Employee struct {
+		ID                  int       `paginate:"id;col=id"`
+		Name                string    `paginate:"col=name"`
+		LastName            string    `paginate:"col=last_name"`
+		WorkNumber          int64     `paginate:"col=worker_number"`
+		DateJoined          time.Time `paginate:"col=date_joined"`
+		Salary              float64   `paginate:"col=salary"`
+		ProgrammingLanguage string    `paginate:"filter;col=programming_language;param=lg"`
+	}
+
+	u, err := url.Parse("http://localhost?lg=Go")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "postgres", *u, TableName("employees"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	innerClause, err := NewInnerJoinClause("postgres")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerClause.On("id", "developer", "employee_id")
+
+	err = pag.AddJoinClause(innerClause)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sql, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := psqlTestDB.Query(sql, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	goDevelopers := employees[:3]
+
+	if len(results) != len(goDevelopers) {
+		t.Errorf("expected to have %[1]d results since there are %[1]d Go developers.", len(goDevelopers))
+	}
+
+	for i := 0; i < len(results); i++ {
+		expectedGoDeveloper := goDevelopers[i]
+		resultGoDeveloper := results[i]
+
+		if expectedGoDeveloper.Name != resultGoDeveloper.Name {
+			t.Errorf("expected manager name to be %s; got %s", expectedGoDeveloper.Name, resultGoDeveloper.Name)
+		}
+		if expectedGoDeveloper.LastName != resultGoDeveloper.LastName {
+			t.Errorf("expected manager last name to be %s; got %s", expectedGoDeveloper.LastName, resultGoDeveloper.LastName)
+		}
+		if expectedGoDeveloper.Salary != resultGoDeveloper.Salary {
+			t.Errorf("expected manager salary to be %f; got %f", expectedGoDeveloper.Salary, resultGoDeveloper.Salary)
+		}
+		if expectedGoDeveloper.DateJoined.Format("02-01-2006") != resultGoDeveloper.DateJoined.Format("02-01-2006") {
+			t.Errorf("expected manager date joined to be %s; got %s", expectedGoDeveloper.DateJoined.Format("02-01-2006"), resultGoDeveloper.DateJoined.Format("02-01-2006"))
+		}
+		if expectedGoDeveloper.WorkNumber != int(resultGoDeveloper.WorkNumber) {
+			t.Errorf("expected manager worker number to be %d; got %d", expectedGoDeveloper.WorkNumber, resultGoDeveloper.WorkNumber)
+		}
+	}
+
+	// Let's check that all developers have "Go" as their programming language.
+	allAreGophers := true
+	for _, r := range results {
+		if r.ProgrammingLanguage != "Go" {
+			allAreGophers = false
+			break
+		}
+	}
+	if !allAreGophers {
+		t.Error("All developers should be gophers")
+	}
+}
