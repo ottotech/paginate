@@ -1626,7 +1626,7 @@ func ExampleTest_NewPaginatorPsql_With_Custom_OrderByDesc_Clause_With_ID() {
 	// args length: 0
 }
 
-func Test_InnerJoin_Sql_Query_String_HappyPath(t *testing.T) {
+func Test_InnerJoin_Psql_Query_String_HappyPath(t *testing.T) {
 	type Employee struct {
 		ID       int    `paginate:"id;col=id"`
 		Name     string `paginate:"col=name"`
@@ -1779,10 +1779,10 @@ func Test_InnerJoin_Psql_Employees_That_Are_Managers(t *testing.T) {
 }
 
 func Test_InnerJoin_Psql_Employees_That_Are_Go_Developers(t *testing.T) {
-	// ProgrammingLanguage it is a column from the joined table.
+	// ProgrammingLanguage it is a column from the joined table ("developer").
 	// In this test we are able to prove that it is possible to filter
-	// joined columns. However, when there are clashes with the columns names
-	// between two or more joined tables to get the correct name of the columns
+	// joined columns. However, if there are clashes with the column names
+	// between two or more joined tables, to get the correct name of the columns
 	// it's a bit hard. I need to think more about how to smooth this problem.
 	type Employee struct {
 		ID                  int       `paginate:"id;col=id"`

@@ -118,7 +118,7 @@ type paginator struct {
 	predicates []RawWhereClause
 
 	// joins holds custom join clauses created by the user of this
-	// package which will added to the generated sql query in
+	// package which will be added to the generated sql query in
 	// Paginator.Paginate.
 	joins []string
 
