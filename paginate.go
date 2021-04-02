@@ -93,8 +93,13 @@ type Paginator interface {
 	// AddWhereClause adds a custom raw where clause that paginator can use to
 	// filter out the rows of the target table in the database. Usually, you will
 	// use this when the backend needs to filter the records based on internal logic,
-	// like, for example: permissions, ownership, etc.
+	// like, for example: permissions, ownership, etc. Add where clauses before
+	// calling Paginator.Paginate.
 	AddWhereClause(clause RawWhereClause) error
+
+	// AddJoinClause adds a custom join clause that paginator can use to join
+	// multiple tables and columns for pagination.
+	AddJoinClause(clause interface{}) error
 }
 
 // paginator is the concrete type that implements the Paginator interface.
@@ -111,6 +116,11 @@ type paginator struct {
 	// predicates holds custom where clauses created by a user of this
 	// package which will be executed in the helper createWhereClause.
 	predicates []RawWhereClause
+
+	// joins holds custom join clauses created by the user of this
+	// package which will be added to the generated sql query in
+	// Paginator.Paginate.
+	joins []string
 
 	// stop is used by NextData and Scan. Scan will set the value of stop
 	// to true whenever Scan returns an error. This will allow NextData to
@@ -210,7 +220,7 @@ type paginator struct {
 }
 
 func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
-	var s string
+	var sqlStr string
 	c1 := make(chan whereClause)
 	c2 := make(chan string)
 	c3 := make(chan string)
@@ -221,8 +231,15 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 	pagination := <-c2
 	order := <-c3
 
+	sqlStr = "SELECT " + strings.Join(p.cols, ", ") + ", count(*) over() FROM " + p.name
+
+	// If there are custom join clauses we need to add them in the sql query string.
+	if len(p.joins) > 0 {
+		sqlStr += " " + strings.Join(p.joins, " ")
+	}
+
 	if where.exists {
-		s = "SELECT " + strings.Join(p.cols, ", ") + ", count(*) over() FROM " + p.name + where.clause + order + pagination
+		sqlStr += where.clause + order + pagination
 		// As an special case we need to enumerate the placeholders if users are using
 		// postgres. See, for example, the documentation of this postgres driver library:
 		// https://pkg.go.dev/github.com/lib/pq#section-documentation
@@ -232,12 +249,12 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 			for i := 1; i < numArgs+1; i++ {
 				placeholders = append(placeholders, i)
 			}
-			s = fmt.Sprintf(s, placeholders...)
+			sqlStr = fmt.Sprintf(sqlStr, placeholders...)
 		}
 	} else {
-		s = "SELECT " + strings.Join(p.cols, ", ") + ", count(*) over() FROM " + p.name + order + pagination
+		sqlStr += order + pagination
 	}
-	return s, where.args, nil
+	return sqlStr, where.args, nil
 }
 
 func (p *paginator) Response() PaginationResponse {
@@ -696,9 +713,37 @@ func (p *paginator) AddWhereClause(clause RawWhereClause) error {
 	}
 
 	if err := dialectPlaceholder.CheckIfDialectIsSupported(clause.dialect); err != nil {
-		return fmt.Errorf("the dialect specified in the RawWhereClause is not supported")
+		return fmt.Errorf("paginate: the dialect specified in the RawWhereClause is not supported")
 	}
 
 	p.predicates = append(p.predicates, clause)
 	return nil
+}
+
+func (p *paginator) AddJoinClause(clause interface{}) error {
+	switch v := clause.(type) {
+	case InnerJoin:
+		v.clean()
+
+		if v.column == "" || v.targetTable == "" || v.targetColumn == "" {
+			return fmt.Errorf("paginate: join clause is empty")
+		}
+
+		if !isStringIn(v.column, p.cols) {
+			return fmt.Errorf("paginate: given column %s in inner clause does not exist in table %s", v.column, p.name)
+		}
+
+		s := fmt.Sprintf("JOIN %s ON %s.%s = %s.%s", v.targetTable, p.name, v.column, v.targetTable, v.targetColumn)
+
+		if isStringIn(s, p.joins) {
+			return fmt.Errorf("paginate: given join clause %q was already given", s)
+		}
+
+		p.joins = append(p.joins, s)
+
+		return nil
+
+	default:
+		return fmt.Errorf("paginate: unkown given type %T", clause)
+	}
 }

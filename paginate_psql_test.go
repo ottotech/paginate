@@ -1625,3 +1625,348 @@ func ExampleTest_NewPaginatorPsql_With_Custom_OrderByDesc_Clause_With_ID() {
 	// SELECT id, name, last_name, worker_number, date_joined, salary, null_text, null_varchar, null_bool, null_date, null_int, null_float, count(*) over() FROM employees ORDER BY id LIMIT 30 OFFSET 0
 	// args length: 0
 }
+
+func Test_InnerJoin_Psql_Query_String_HappyPath(t *testing.T) {
+	type Employee struct {
+		ID       int    `paginate:"id;col=id"`
+		Name     string `paginate:"col=name"`
+		LastName string `paginate:"col=last_name"`
+	}
+
+	u, err := url.Parse("http://localhost?sort=-id")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "postgres", *u, TableName("employees"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	rawSql, err := NewRawWhereClause("postgres")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawSql.AddPredicate("name ILIKE ?")
+	rawSql.AddArg("%ringo%")
+
+	err = pag.AddWhereClause(rawSql)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerClause, err := NewInnerJoinClause("postgres")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerClause.On("id", "managers", "employee_id")
+
+	err = pag.AddJoinClause(innerClause)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sql, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedSql := "SELECT id, name, last_name, count(*) over() FROM employees JOIN managers ON employees.id = managers.employee_id WHERE name ILIKE $1 ORDER BY id LIMIT 30 OFFSET 0"
+	expectedArg := "%ringo%"
+
+	if sql != expectedSql {
+		t.Errorf("expected sql %q; got %q instead", expectedSql, sql)
+	}
+
+	if args[0] != expectedArg {
+		t.Errorf("expected arg %q; got %q instead", expectedArg, args[0])
+	}
+}
+
+func Test_InnerJoin_Psql_Employees_That_Are_Managers(t *testing.T) {
+	type Employee struct {
+		ID         int       `paginate:"id;col=id"`
+		Name       string    `paginate:"col=name"`
+		LastName   string    `paginate:"col=last_name"`
+		WorkNumber int64     `paginate:"col=worker_number"`
+		DateJoined time.Time `paginate:"col=date_joined"`
+		Salary     int64     `paginate:"col=salary"`
+	}
+
+	u, err := url.Parse("http://localhost")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "postgres", *u, TableName("employees"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	innerClause, err := NewInnerJoinClause("postgres")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerClause.On("id", "manager", "employee_id")
+
+	err = pag.AddJoinClause(innerClause)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sql, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := psqlTestDB.Query(sql, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	managers := employees[5:]
+
+	if len(results) != len(managers) {
+		t.Errorf("expected to have %[1]d results since there are %[1]d managers.", len(managers))
+	}
+
+	for i := 0; i < len(results); i++ {
+		expectedManager := managers[i]
+		resultManager := results[i]
+
+		if expectedManager.Name != resultManager.Name {
+			t.Errorf("expected manager name to be %s; got %s", expectedManager.Name, resultManager.Name)
+		}
+		if expectedManager.LastName != resultManager.LastName {
+			t.Errorf("expected manager last name to be %s; got %s", expectedManager.LastName, resultManager.LastName)
+		}
+		if int64(expectedManager.Salary) != resultManager.Salary {
+			t.Errorf("expected manager salary to be %d; got %d", int64(expectedManager.Salary), resultManager.Salary)
+		}
+		if expectedManager.DateJoined.Format("02-01-2006") != resultManager.DateJoined.Format("02-01-2006") {
+			t.Errorf("expected manager date joined to be %s; got %s", expectedManager.DateJoined.Format("02-01-2006"), resultManager.DateJoined.Format("02-01-2006"))
+		}
+		if expectedManager.WorkNumber != int(resultManager.WorkNumber) {
+			t.Errorf("expected manager worker number to be %d; got %d", expectedManager.WorkNumber, resultManager.WorkNumber)
+		}
+	}
+}
+
+func Test_InnerJoin_Psql_Employees_That_Are_Go_Developers(t *testing.T) {
+	// ProgrammingLanguage it is a column from the joined table ("developer").
+	// In this test we are able to prove that it is possible to filter
+	// joined columns. However, if there are clashes with the column names
+	// between two or more joined tables, to get the correct name of the columns
+	// it's a bit hard. I need to think more about how to smooth this problem.
+	type Employee struct {
+		ID                  int       `paginate:"id;col=id"`
+		Name                string    `paginate:"col=name"`
+		LastName            string    `paginate:"col=last_name"`
+		WorkNumber          int64     `paginate:"col=worker_number"`
+		DateJoined          time.Time `paginate:"col=date_joined"`
+		Salary              float64   `paginate:"col=salary"`
+		ProgrammingLanguage string    `paginate:"filter;col=programming_language;param=lg"`
+	}
+
+	u, err := url.Parse("http://localhost?lg=Go")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	pag, err := NewPaginator(Employee{}, "postgres", *u, TableName("employees"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	innerClause, err := NewInnerJoinClause("postgres")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerClause.On("id", "developer", "employee_id")
+
+	err = pag.AddJoinClause(innerClause)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sql, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := psqlTestDB.Query(sql, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	goDevelopers := employees[:3]
+
+	if len(results) != len(goDevelopers) {
+		t.Errorf("expected to have %[1]d results since there are %[1]d Go developers.", len(goDevelopers))
+	}
+
+	for i := 0; i < len(results); i++ {
+		expectedGoDeveloper := goDevelopers[i]
+		resultGoDeveloper := results[i]
+
+		if expectedGoDeveloper.Name != resultGoDeveloper.Name {
+			t.Errorf("expected manager name to be %s; got %s", expectedGoDeveloper.Name, resultGoDeveloper.Name)
+		}
+		if expectedGoDeveloper.LastName != resultGoDeveloper.LastName {
+			t.Errorf("expected manager last name to be %s; got %s", expectedGoDeveloper.LastName, resultGoDeveloper.LastName)
+		}
+		if expectedGoDeveloper.Salary != resultGoDeveloper.Salary {
+			t.Errorf("expected manager salary to be %f; got %f", expectedGoDeveloper.Salary, resultGoDeveloper.Salary)
+		}
+		if expectedGoDeveloper.DateJoined.Format("02-01-2006") != resultGoDeveloper.DateJoined.Format("02-01-2006") {
+			t.Errorf("expected manager date joined to be %s; got %s", expectedGoDeveloper.DateJoined.Format("02-01-2006"), resultGoDeveloper.DateJoined.Format("02-01-2006"))
+		}
+		if expectedGoDeveloper.WorkNumber != int(resultGoDeveloper.WorkNumber) {
+			t.Errorf("expected manager worker number to be %d; got %d", expectedGoDeveloper.WorkNumber, resultGoDeveloper.WorkNumber)
+		}
+	}
+
+	// Let's check that all developers have "Go" as their programming language.
+	allAreGophers := true
+	for _, r := range results {
+		if r.ProgrammingLanguage != "Go" {
+			allAreGophers = false
+			break
+		}
+	}
+	if !allAreGophers {
+		t.Error("All developers should be gophers")
+	}
+}
+
+func Test_InnerJoin_Psql_Employees_That_Are_Python_Developers_With_Pagination(t *testing.T) {
+	type Employee struct {
+		ID                  int       `paginate:"id;col=id"`
+		Name                string    `paginate:"col=name"`
+		LastName            string    `paginate:"col=last_name"`
+		WorkNumber          int64     `paginate:"col=worker_number"`
+		DateJoined          time.Time `paginate:"col=date_joined"`
+		Salary              float64   `paginate:"col=salary"`
+		ProgrammingLanguage string    `paginate:"filter;col=programming_language;param=lg"`
+	}
+
+	u, err := url.Parse("http://localhost?lg=Python&page=2")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	opt := PageSize(1)
+
+	pag, err := NewPaginator(Employee{}, "postgres", *u, TableName("employees"), opt)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	innerClause, err := NewInnerJoinClause("postgres")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	innerClause.On("id", "developer", "employee_id")
+
+	err = pag.AddJoinClause(innerClause)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sql, args, err := pag.Paginate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := psqlTestDB.Query(sql, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(pag.GetRowPtrArgs()...)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	results := make([]Employee, 0)
+
+	for pag.NextData() {
+		employee := Employee{}
+		err = pag.Scan(&employee)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, employee)
+	}
+
+	if len(results) != 1 {
+		t.Fatal("expected to have only one result, " +
+			"since there are 2 python developers and we are paginating " +
+			"the results and we are in the second page.")
+	}
+
+	expectedPythonDeveloper := employees[4]
+	resultPythonDeveloper := results[0]
+
+	if expectedPythonDeveloper.Name != resultPythonDeveloper.Name {
+		t.Fatalf("expected to have %s python developer; got %s", expectedPythonDeveloper.Name, resultPythonDeveloper.Name)
+	}
+}
