@@ -233,7 +233,7 @@ func (p *paginator) Paginate() (sql string, values []interface{}, err error) {
 
 	sqlStr = "SELECT " + strings.Join(p.cols, ", ") + ", count(*) over() FROM " + p.name
 
-	// If there are custom join clause we need to add them in the sql query string.
+	// If there are custom join clauses we need to add them in the sql query string.
 	if len(p.joins) > 0 {
 		sqlStr += " " + strings.Join(p.joins, " ")
 	}
